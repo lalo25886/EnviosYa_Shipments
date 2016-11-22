@@ -5,8 +5,10 @@
  */
 package com.enviosya.domain.shipment;
 
+
 import com.enviosya.persistence.shipment.WayToPayEntity;
 import com.google.gson.Gson;
+import java.util.List;
 import javax.annotation.PostConstruct;
 import javax.ejb.Stateless;
 import javax.ejb.LocalBean;
@@ -98,4 +100,9 @@ public WayToPayEntity agregar(WayToPayEntity unPago) {
         return false;
     }
 
+     public List<WayToPayEntity> listar() {
+        List<WayToPayEntity> list =
+                em.createQuery("select e from WayToPayEntity e").getResultList();
+        return list;
+    }
 }

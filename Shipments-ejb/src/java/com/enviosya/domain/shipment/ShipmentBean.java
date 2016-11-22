@@ -2,6 +2,12 @@ package com.enviosya.domain.shipment;
 
 import com.enviosya.persistence.shipment.ShipmentEntity;
 import com.google.gson.Gson;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.List;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
@@ -16,6 +22,8 @@ import javax.jms.Queue;
 import javax.jms.Session;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.persistence.Query;
+import javax.ws.rs.core.Response;
 import org.apache.log4j.Logger;
 
 /**
@@ -25,7 +33,8 @@ import org.apache.log4j.Logger;
 @Stateless
 @LocalBean
 public class ShipmentBean {
- static Logger log = Logger.getLogger("FILE");
+    
+    static Logger log = Logger.getLogger("FILE");
     @Resource(lookup = "jms/ConnectionFactory")
     private ConnectionFactory connectionFactory;
     @Resource(lookup = "jms/QueueCadete")
@@ -37,6 +46,7 @@ public class ShipmentBean {
     @PersistenceContext
     private EntityManager em;
     @PostConstruct
+    
     private void init() {
     }
 
@@ -56,7 +66,6 @@ public class ShipmentBean {
             Gson gson = new Gson();
             ShipmentEntity unEnvio = gson.fromJson(body, ShipmentEntity.class);
             em.persist(unEnvio);
-        //    enviarCreacionEnvio(unEnvio);
             return unEnvio;
         } catch (Exception e) {
             log.error("Error en agregrar Shipment Entity: " + e.getMessage());
@@ -74,9 +83,23 @@ public class ShipmentBean {
         return null;
     }
 
+    public ShipmentEntity asignarCadete(Long id, Long idCad) {
+          
+        try {
+            ShipmentEntity amodificar = em.find(ShipmentEntity.class,id);
+            amodificar.setIdCadete(idCad);
+            em.merge(amodificar);
+            return amodificar;
+        } catch (Exception e) {
+            log.error("Error en modificar Shipment Entity: " + e.getMessage());
+        }
+        return null;
+    }
+
     public boolean eliminar(ShipmentEntity unShipmentEntity) {
        try {
-        ShipmentEntity aBorrar = em.find(ShipmentEntity.class, unShipmentEntity.getId());
+        ShipmentEntity aBorrar = em.find(ShipmentEntity.class, 
+                                         unShipmentEntity.getId());
         em.remove(aBorrar);
         return true;
         } catch (Exception e) {
@@ -106,7 +129,47 @@ public class ShipmentBean {
                 .setParameter("desc", descripcion).getResultList();
         return list;
     }
+    //Metodo que devuelve los 4 cadetes mas proximos a la ubicación del 
+    // origen
+    public String getCadetesCercanos(String latitud, String longitud) {
+        //En este metodo tengo que agregar la comparación de la 
+        //ubicación para saber cual es el que está más cerca
+        String r="";
+	try {
 
+            URL url = new URL("http://localhost:8080/Cadets-war/cadet/getCadets");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
+
+            if (conn.getResponseCode() != 200) {
+                    throw new RuntimeException("Failed : HTTP error code : "
+                                    + conn.getResponseCode());
+            }
+            BufferedReader br = new BufferedReader(new InputStreamReader(
+                    (conn.getInputStream())));
+            String output = "";
+            int contador = 1;
+            while ((output = br.readLine()) != null && contador <= 4) {
+                    r = output + "\n"; 
+                    contador++;
+            }
+
+            conn.disconnect();
+
+      } catch (MalformedURLException e) {
+
+            e.printStackTrace();
+
+      } catch (IOException e) {
+
+            e.printStackTrace();
+
+      }
+      return r;
+}
+}
+    
 //    public List<ShipmentEntity> listarClienteEnvios(Long idRecibido) {
 //         List<ShipmentEntity> retorno = null;
 //        try {
@@ -161,7 +224,7 @@ public class ShipmentBean {
 //            log.error("ERROR:"  + ex.getMessage());
 //        }
 //    }
-//
+
 //    public List<EnvioEntity> listarCadeteEnvios(Long idRecibido) {
 //         List<EnvioEntity> retorno = null;
 //    try {
@@ -188,5 +251,3 @@ public class ShipmentBean {
 //        }
 //       return retorno;
 //   }
-
-}

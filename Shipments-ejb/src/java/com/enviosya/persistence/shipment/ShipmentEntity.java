@@ -23,17 +23,7 @@ public class ShipmentEntity implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
-
-//    private String descripcion;
-//    private String enviaLatitud;
-//    private String enviaLongitud;
-//    private String recibeLatitud;
-//    private String recibeLongitud;
-//    private Long   idCadete;
-//    private Long idFormaPago;
-//    private String imagenPaquete;
-
-   
+  
    @Column(length = 300)
    private String descripcion;
    
@@ -55,9 +45,10 @@ public class ShipmentEntity implements Serializable {
    
    private Long idCadete;
    
-   @ManyToOne(fetch=FetchType.LAZY)
-   @JoinColumn(name = "WAYTOPAY_ID")
-   private WayToPayEntity idWayToPay;
+   //@ManyToOne(fetch=FetchType.LAZY)
+  // @JoinColumn(name = "WAYTOPAY_ID")
+   //private WayToPayEntity idWayToPay;
+   private Long idWayToPay;
    
    @NotNull
    @Column(length = 500)
@@ -120,13 +111,22 @@ public class ShipmentEntity implements Serializable {
         this.idCadete = idCadete;
     }
 
-    public WayToPayEntity getIdWayToPay() {
+//    public WayToPayEntity getIdWayToPay() {
+//        return idWayToPay;
+//    }
+//
+//    public void setIdWayToPay(WayToPayEntity idWayToPay) {
+//        this.idWayToPay = idWayToPay;
+//    }
+
+    public Long getIdWayToPay() {
         return idWayToPay;
     }
 
-    public void setIdWayToPay(WayToPayEntity idWayToPay) {
+    public void setIdWayToPay(Long idWayToPay) {
         this.idWayToPay = idWayToPay;
     }
+    
 
     public String getImagenPaquete() {
         return imagenPaquete;
