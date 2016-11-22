@@ -18,7 +18,7 @@ import org.apache.log4j.Logger;
 
 /**
  *
- * @author Gonzalo
+ * @author Alvaro
  */
 @Stateless
 @LocalBean
