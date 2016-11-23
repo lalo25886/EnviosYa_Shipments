@@ -1,4 +1,4 @@
-package com.enviosya.persistence.shipment;
+package com.enviosya.shipment.persistence;
 
 import java.io.Serializable;
 import javax.persistence.Column;

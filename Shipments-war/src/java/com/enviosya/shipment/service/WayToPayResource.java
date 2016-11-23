@@ -3,11 +3,11 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.enviosya.service.shipment;
+package com.enviosya.shipment.service;
 
 
-import com.enviosya.domain.shipment.WayToPayBean;
-import com.enviosya.persistence.shipment.WayToPayEntity;
+import com.enviosya.shipment.domain.WayToPayBean;
+import com.enviosya.shipment.persistence.WayToPayEntity;
 import com.google.gson.Gson;
 import java.util.List;
 import javax.ejb.EJB;

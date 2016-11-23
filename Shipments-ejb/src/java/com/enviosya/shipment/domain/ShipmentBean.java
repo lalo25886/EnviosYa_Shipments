@@ -1,6 +1,6 @@
-package com.enviosya.domain.shipment;
+package com.enviosya.shipment.domain;
 
-import com.enviosya.persistence.shipment.ShipmentEntity;
+import com.enviosya.shipment.persistence.ShipmentEntity;
 import com.google.gson.Gson;
 import java.io.BufferedReader;
 import java.io.IOException;

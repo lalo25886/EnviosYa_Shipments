@@ -1,9 +1,9 @@
 
-package com.enviosya.service.shipment;
+package com.enviosya.shipment.service;
 
-import com.enviosya.domain.shipment.Shipment;
-import com.enviosya.domain.shipment.ShipmentBean;
-import com.enviosya.persistence.shipment.ShipmentEntity;
+import com.enviosya.shipment.domain.Shipment;
+import com.enviosya.shipment.domain.ShipmentBean;
+import com.enviosya.shipment.persistence.ShipmentEntity;
 import com.google.gson.Gson;
 import com.sun.xml.rpc.processor.modeler.j2ee.xml.string;
 import java.io.BufferedReader;

@@ -23,8 +23,8 @@ public class ApplicationConfig extends Application {
      * If required, comment out calling this method in getClasses().
      */
     private void addRestResourceClasses(Set<Class<?>> resources) {
-        resources.add(com.enviosya.service.shipment.ShipmentResource.class);
-        resources.add(com.enviosya.service.shipment.WayToPayResource.class);
+        resources.add(com.enviosya.shipment.service.ShipmentResource.class);
+        resources.add(com.enviosya.shipment.service.WayToPayResource.class);
     }
     
 }

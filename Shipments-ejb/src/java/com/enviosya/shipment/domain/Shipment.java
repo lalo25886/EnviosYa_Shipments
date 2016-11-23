@@ -1,5 +1,5 @@
 
-package com.enviosya.domain.shipment;
+package com.enviosya.shipment.domain;
 
 import java.util.Objects;
 
