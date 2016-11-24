@@ -114,6 +114,11 @@ public class Shipment {
         }
         return true;
     }
+
+    @Override
+    public String toString() {
+        return "ID = " + id ;
+    }
     
     
 }

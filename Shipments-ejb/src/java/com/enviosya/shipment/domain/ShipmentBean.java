@@ -99,16 +99,20 @@ public class ShipmentBean {
     private void enviarCreacionEnvio(ShipmentEntity unEnvio) {
         try (Connection connection = connectionFactory.createConnection();
             Session session = connection.createSession()) {
+
             MessageProducer productorDeMensajeCadete =
                     session.createProducer(queueCadete);
+
             MessageProducer productorDeMensajeEmisor =
                     session.createProducer(queueEmisor);
+
             MessageProducer productorDeMensajeReceptor =
                     session.createProducer(queueReceptor);
 
             Message mensaje =
                     session.createTextMessage("Cadete tiene un "
                             + "envio pendiente:" + unEnvio.toString());
+            
             productorDeMensajeCadete.send(mensaje);
             mensaje = session.createTextMessage("Estimado cliente estamos "
                     + "realizado el envio:" + unEnvio.getId()
