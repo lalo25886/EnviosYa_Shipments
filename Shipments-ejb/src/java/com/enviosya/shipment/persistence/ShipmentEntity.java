@@ -50,10 +50,15 @@ public class ShipmentEntity implements Serializable {
    //private WayToPayEntity idWayToPay;
    private Long idWayToPay;
    
+   
+   
    @NotNull
    @Column(length = 500)
    private String imagenPaquete;
    
+   private Long idClienteOrigen;
+   
+   private Long idClienteDestino;
 
    public Long getId() {
         return id;
@@ -136,7 +141,22 @@ public class ShipmentEntity implements Serializable {
         this.imagenPaquete = imagenPaquete;
     }
 
-        
+    public Long getIdClienteOrigen() {
+        return idClienteOrigen;
+    }
+
+    public void setIdClienteOrigen(Long idClienteOrigen) {
+        this.idClienteOrigen = idClienteOrigen;
+    }
+
+    public Long getIdClienteDestino() {
+        return idClienteDestino;
+    }
+
+    public void setIdClienteDestino(Long idClienteDestino) {
+        this.idClienteDestino = idClienteDestino;
+    }
+    
     @Override
     public int hashCode() {
         int hash = 0;

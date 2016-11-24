@@ -22,9 +22,8 @@ import javax.jms.Queue;
 import javax.jms.Session;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-import javax.persistence.Query;
-import javax.ws.rs.core.Response;
 import org.apache.log4j.Logger;
+
 
 /**
  *
@@ -89,11 +88,44 @@ public class ShipmentBean {
             ShipmentEntity amodificar = em.find(ShipmentEntity.class,id);
             amodificar.setIdCadete(idCad);
             em.merge(amodificar);
+            enviarCreacionEnvio(amodificar);
             return amodificar;
         } catch (Exception e) {
             log.error("Error en modificar Shipment Entity: " + e.getMessage());
         }
         return null;
+    }
+    
+    private void enviarCreacionEnvio(ShipmentEntity unEnvio) {
+        try (Connection connection = connectionFactory.createConnection();
+            Session session = connection.createSession()) {
+            MessageProducer productorDeMensajeCadete =
+                    session.createProducer(queueCadete);
+            MessageProducer productorDeMensajeEmisor =
+                    session.createProducer(queueEmisor);
+            MessageProducer productorDeMensajeReceptor =
+                    session.createProducer(queueReceptor);
+
+            Message mensaje =
+                    session.createTextMessage("Cadete tiene un "
+                            + "envio pendiente:" + unEnvio.toString());
+            productorDeMensajeCadete.send(mensaje);
+            mensaje = session.createTextMessage("Estimado cliente estamos "
+                    + "realizado el envio:" + unEnvio.getId()
+                    + " sera entregado por el cadete: "
+                    + "}" + unEnvio.getIdCadete().toString());
+
+            productorDeMensajeEmisor.send(mensaje);
+            mensaje = session.createTextMessage("Estimado cliente "
+                    + "el envio:" + unEnvio.getId() 
+                    + " sera entregado por el cadete: "
+                    + unEnvio.getIdCadete().toString());
+            productorDeMensajeReceptor.send(mensaje);
+
+            log.info("Envio realizado:" + unEnvio.toString());
+        } catch (JMSException ex) {
+            log.error("ERROR:"  + ex.getMessage());
+        }
     }
 
     public boolean eliminar(ShipmentEntity unShipmentEntity) {
