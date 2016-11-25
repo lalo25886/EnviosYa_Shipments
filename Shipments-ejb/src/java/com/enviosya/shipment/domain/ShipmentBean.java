@@ -11,6 +11,7 @@ import java.net.URL;
 import java.util.List;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.ejb.LocalBean;
 import javax.jms.Connection;
@@ -25,13 +26,17 @@ import javax.persistence.PersistenceContext;
 import org.apache.log4j.Logger;
 
 
+
 /**
  *
  * @author Gonzalo
  */
 @Stateless
-@LocalBean
 public class ShipmentBean {
+
+
+     @EJB
+    MailBean mailBean;
     
     static Logger log = Logger.getLogger("FILE");
     @Resource(lookup = "jms/ConnectionFactory")
@@ -46,11 +51,14 @@ public class ShipmentBean {
     private EntityManager em;
     @PostConstruct
     
+    
+    
     private void init() {
     }
 
     public ShipmentEntity agregar(ShipmentEntity unShipmentEntity) {
         try {
+            
             em.persist(unShipmentEntity);
         //    enviarCreacionEnvio(unShipmentEntity);
             return unShipmentEntity;
@@ -97,7 +105,9 @@ public class ShipmentBean {
     }
     
     private void enviarCreacionEnvio(ShipmentEntity unEnvio) {
-        try (Connection connection = connectionFactory.createConnection();
+        
+        try (
+            Connection connection = connectionFactory.createConnection();
             Session session = connection.createSession()) {
 
             MessageProducer productorDeMensajeCadete =
@@ -108,25 +118,24 @@ public class ShipmentBean {
 
             MessageProducer productorDeMensajeReceptor =
                     session.createProducer(queueReceptor);
-
+            String cadeteNotif = getCadeteNotificar(unEnvio.getId());
             Message mensaje =
-                    session.createTextMessage("Cadete tiene un "
-                            + "envio pendiente:" + unEnvio.toString());
             
-            productorDeMensajeCadete.send(mensaje);
-            mensaje = session.createTextMessage("Estimado cliente estamos "
-                    + "realizado el envio:" + unEnvio.getId()
-                    + " sera entregado por el cadete: "
-                    + "}" + unEnvio.getIdCadete().toString());
-
-            productorDeMensajeEmisor.send(mensaje);
-            mensaje = session.createTextMessage("Estimado cliente "
-                    + "el envio:" + unEnvio.getId() 
-                    + " sera entregado por el cadete: "
-                    + unEnvio.getIdCadete().toString());
-            productorDeMensajeReceptor.send(mensaje);
-
+            session.createTextMessage(cadeteNotif+ " - Nuevo envío - "
+                    + "Estimado cadete "
+                    +unEnvio.getIdCadete().toString() 
+                    + ", usted tiene el "
+                    + "envio número : "+unEnvio.getId()+ " pendiente.");
+            productorDeMensajeCadete.send(mensaje);            
+            
+            String mensajeNuevo = cadeteNotif+ " - "
+                    + "Nuevo envío - Estimado cadete "
+                    + unEnvio.getIdCadete().toString() 
+                    + ", usted tiene el "
+                    + "envio número : "+unEnvio.getId()+ " pendiente.";
+            mailBean.enviarMail(mensajeNuevo);
             log.info("Envio realizado:" + unEnvio.toString());
+           
         } catch (JMSException ex) {
             log.error("ERROR:"  + ex.getMessage());
         }
@@ -168,8 +177,6 @@ public class ShipmentBean {
     //Metodo que devuelve los 4 cadetes mas proximos a la ubicación del 
     // origen
     public String getCadetesCercanos(String latitud, String longitud) {
-        //En este metodo tengo que agregar la comparación de la 
-        //ubicación para saber cual es el que está más cerca
         String r="";
 	try {
 
@@ -190,7 +197,33 @@ public class ShipmentBean {
                     r = output + "\n"; 
                     contador++;
             }
+            conn.disconnect();
+      } catch (MalformedURLException e) {
+            e.printStackTrace();
+      } catch (IOException e) {
+            e.printStackTrace();
+      }
+      return r;
+}
+    public String getCadeteNotificar(Long idCadete) {
+        String r="";
+	try {
+            String link = "http://localhost:8080/Cadets-war/cadet/getCadet/"+idCadete.toString();
+            URL url = new URL(link);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
 
+            if (conn.getResponseCode() != 200) {
+                    throw new RuntimeException("Failed : HTTP error code : "
+                                    + conn.getResponseCode());
+            }
+            BufferedReader br = new BufferedReader(new InputStreamReader(
+                    (conn.getInputStream())));
+            String output = "";
+            while ((output = br.readLine()) != null) {
+                    r = output; 
+            }
             conn.disconnect();
 
       } catch (MalformedURLException e) {
@@ -203,87 +236,5 @@ public class ShipmentBean {
 
       }
       return r;
+    }    
 }
-}
-    
-//    public List<ShipmentEntity> listarClienteEnvios(Long idRecibido) {
-//         List<ShipmentEntity> retorno = null;
-//        try {
-//            retorno = em.createQuery("SELECT      e.id,"
-//                                        + " e.descripcion,"
-//                                        + " e.emisor.ci,"
-//                                        + " e.emisor.nombre,"
-//                                        + " e.emisor.apellido,"
-//                                        + " e.dirRetiro,"
-//                                        + " e.receptor.nombre,"
-//                                        + " e.receptor.apellido,"
-//                                        + " e.dirRecibo,"
-//                                        + " e.cadete.nombre,"
-//                                        + " e.cadete.email,"
-//                                        + " e.vehiculo.matricula,"
-//                                        + " e.vehiculo.descripcion "
-//                                + "FROM EnvioEntity e "
-//                                + "WHERE e.emisor.id = :id", ShipmentEntity.class)
-//                                .setParameter("id", idRecibido).getResultList();
-//       } catch (Exception e) {
-//            log.error("Error en consultar Envio Entity: " + e.getMessage());
-//        }
-//       return retorno;
-//   }
-//
-//    private void enviarCreacionEnvio(ShipmentEntity unEnvio) {
-//        try (Connection connection = connectionFactory.createConnection();
-//            Session session = connection.createSession()) {
-//            MessageProducer productorDeMensajeCadete =
-//                    session.createProducer(queueCadete);
-//            MessageProducer productorDeMensajeEmisor =
-//                    session.createProducer(queueEmisor);
-//            MessageProducer productorDeMensajeReceptor =
-//                    session.createProducer(queueReceptor);
-//
-//            Message mensaje =
-//                    session.createTextMessage("Cadete tiene un "
-//                            + "envio pendiente:" + unEnvio.toString());
-//            productorDeMensajeCadete.send(mensaje);
-//            mensaje = session.createTextMessage("Estimado cliente estamos "
-//                    + "realizado en envio:" + unEnvio.getId()
-//                    + " sera entregado por: " + unEnvio.getCadete().toString());
-//
-//            productorDeMensajeEmisor.send(mensaje);
-//            mensaje = session.createTextMessage("Estimado cliente "
-//                    + "el envio:" + unEnvio.getId() + " sera entregado por: "
-//                    + unEnvio.getCadete().toString());
-//            productorDeMensajeReceptor.send(mensaje);
-//
-//            log.info("Envio realizado:" + unEnvio.toString());
-//        } catch (JMSException ex) {
-//            log.error("ERROR:"  + ex.getMessage());
-//        }
-//    }
-
-//    public List<EnvioEntity> listarCadeteEnvios(Long idRecibido) {
-//         List<EnvioEntity> retorno = null;
-//    try {
-//            retorno =
-//                em.createQuery("SELECT      e.id,"
-//                                        + " e.descripcion,"
-//                                        + " e.cadete.nombre,"
-//                                        + " e.cadete.email,"
-//                                        + " e.emisor.ci,"
-//                                        + " e.emisor.nombre,"
-//                                        + " e.emisor.apellido,"
-//                                        + " e.dirRetiro,"
-//                                        + " e.receptor.ci,"
-//                                        + " e.receptor.nombre,"
-//                                        + " e.receptor.apellido,"
-//                                        + " e.dirRecibo,"
-//                                        + " e.vehiculo.matricula,"
-//                                        + " e.vehiculo.descripcion "
-//                                + "FROM EnvioEntity e "
-//                                + "WHERE e.cadete.id = :id", EnvioEntity.class)
-//                                .setParameter("id", idRecibido).getResultList();
-//        } catch (Exception e) {
-//            log.error("ERROR:"  + e.getMessage());
-//        }
-//       return retorno;
-//   }
