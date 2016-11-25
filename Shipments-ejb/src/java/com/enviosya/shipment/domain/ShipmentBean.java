@@ -1,5 +1,6 @@
 package com.enviosya.shipment.domain;
 
+import com.enviosya.shipment.mail.MailBean;
 import com.enviosya.shipment.persistence.ShipmentEntity;
 import com.google.gson.Gson;
 import java.io.BufferedReader;

@@ -1,4 +1,4 @@
-package com.enviosya.shipment.domain;
+package com.enviosya.shipment.mail;
 import java.util.Properties;
 import javax.ejb.LocalBean;
 import javax.ejb.Stateless;
