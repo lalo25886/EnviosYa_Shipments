@@ -3,13 +3,9 @@ package com.enviosya.shipment.persistence;
 import java.io.Serializable;
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToOne;
 import javax.validation.constraints.NotNull;
 
 /**
@@ -23,42 +19,42 @@ public class ShipmentEntity implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
-  
+
    @Column(length = 300)
    private String descripcion;
-   
+
    @NotNull
    @Column(length = 300)
    private String origenLatitud;
-   
+
    @NotNull
    @Column(length = 300)
    private String origenLongitud;
-   
+
    @NotNull
    @Column(length = 300)
    private String destinoLatitud;
-   
+
    @NotNull
    @Column(length = 300)
    private String destinoLongitud;
-   
+
    private Long idCadete;
-   
+
    //@ManyToOne(fetch=FetchType.LAZY)
   // @JoinColumn(name = "WAYTOPAY_ID")
    //private WayToPayEntity idWayToPay;
    private Long idWayToPay;
-   
-   
-   
+
    @NotNull
    @Column(length = 500)
    private String imagenPaquete;
-   
+
    private Long idClienteOrigen;
-   
+
    private Long idClienteDestino;
+
+   private int confirmado;
 
    public Long getId() {
         return id;
@@ -156,7 +152,15 @@ public class ShipmentEntity implements Serializable {
     public void setIdClienteDestino(Long idClienteDestino) {
         this.idClienteDestino = idClienteDestino;
     }
-    
+
+    public int getConfirmado() {
+        return confirmado;
+    }
+
+    public void setConfirmado(int confirmado) {
+        this.confirmado = confirmado;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -166,12 +170,14 @@ public class ShipmentEntity implements Serializable {
 
     @Override
     public boolean equals(Object object) {
-        // TODO: Warning - this method won't work in the case the id fields are not set
         if (!(object instanceof ShipmentEntity)) {
             return false;
         }
         ShipmentEntity other = (ShipmentEntity) object;
-        if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
+        if ((this.id == null
+                && other.id != null)
+                || (this.id != null
+                && !this.id.equals(other.id))) {
             return false;
         }
         return true;

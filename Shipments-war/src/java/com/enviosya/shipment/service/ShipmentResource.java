@@ -1,24 +1,21 @@
 
 package com.enviosya.shipment.service;
 
-import com.enviosya.shipment.domain.Shipment;
+
 import com.enviosya.shipment.domain.ShipmentBean;
 import com.enviosya.shipment.persistence.ShipmentEntity;
 import com.google.gson.Gson;
-import com.sun.xml.rpc.processor.modeler.j2ee.xml.string;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.List;
 import javax.ejb.EJB;
 import javax.ws.rs.Consumes;
-import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -75,16 +72,16 @@ public class ShipmentResource {
         String linea = "";
         String[] datos = new String[2];
         int contador = 0;
-        try{
+        try {
             BufferedReader in = new BufferedReader(new InputStreamReader(data));
-            while((linea = in.readLine())!=null){
+            while ((linea = in.readLine())!=null){
                 linea = linea.replace("\"id\": \"", "");
                 linea = linea.replace("\"idCadete\": \"", "");
                 linea = linea.replace("\"", "");
-                linea = linea.replace("	","");
-                linea = linea.replace("{","");
-                linea = linea.replace("}","");
-                linea = linea.replace(",","");
+                linea = linea.replace("	", "");
+                linea = linea.replace("{", "");
+                linea = linea.replace("}", "");
+                linea = linea.replace(",", "");
                 linea = linea.trim();
 
                 if(!linea.equalsIgnoreCase("")){
@@ -107,7 +104,7 @@ public class ShipmentResource {
                         .entity(gson.toJson(modificado))
                         .build();
             }
-            }catch(Exception e){
+            } catch (Exception e){
                 System.out.println(e.getMessage());
             }
         return r;
@@ -135,7 +132,7 @@ public class ShipmentResource {
         return r;
     }
 
-     @POST
+    @POST
     @Path("delete")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response eliminar(String body) {
@@ -167,6 +164,33 @@ public class ShipmentResource {
 //      Gson gson = new Gson();
 //      retorno = gson.toJson(envioBean.listarClienteEnvios(cliente.getId()));
 //      return retorno;
-//  } 
+//  }
+
+    @POST
+    @Path("/confirm/{id}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    //@Produces(MediaType.TEXT_HTML)
+    public Response confirmarRecepcion(@PathParam("id") String id){
+        Response r = null;
+        try {
+            System.out.println("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM");
+            boolean confirmado = false;
+            confirmado = shipmentBean.confirmarRecepcion(Long.valueOf(id));
+            if (!confirmado) {
+                r = Response
+                        .status(Response.Status.BAD_REQUEST)
+                        .entity("Error al confirmar.")
+                        .build();
+            } else {
+                r = Response
+                        .status(Response.Status.CREATED)
+                        .entity("Confirmación exitosa.")
+                        .build();
+            }
+            } catch (Exception e) {
+                System.out.println(e.getMessage());
+            }
+        return r;
+    }
 }
 

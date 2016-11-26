@@ -7,7 +7,19 @@
             <minimum-ant-version>1.6.5</minimum-ant-version>
             <included-library dirs="200">file.reference.gson-2.7.jar</included-library>
             <included-library dirs="200">file.reference.log4j-1.2.17.jar</included-library>
-            <included-library dirs="200">reference.Library.jar</included-library>
+            <included-library dirs="200">file.reference.unirest-java-1.4.9.jar</included-library>
+            <included-library dirs="200">file.reference.java-json.jar</included-library>
+            <included-library dirs="200">file.reference.httpclient-4.5.2.jar</included-library>
+            <included-library dirs="200">file.reference.httpclient-cache-4.5.2.jar</included-library>
+            <included-library dirs="200">file.reference.httpclient-win-4.5.2.jar</included-library>
+            <included-library dirs="200">file.reference.httpcore-4.4.4.jar</included-library>
+            <included-library dirs="200">file.reference.httpmime-4.5.2.jar</included-library>
+            <included-library dirs="200">file.reference.httpcore-nio-4.0.1.jar</included-library>
+            <included-library dirs="200">file.reference.commons-logging-1.2.jar</included-library>
+            <included-library dirs="200">file.reference.fluent-hc-4.5.2.jar</included-library>
+            <included-library dirs="200">file.reference.jna-4.1.0.jar</included-library>
+            <included-library dirs="200">file.reference.jna-platform-4.1.0.jar</included-library>
+            <included-library dirs="200">file.reference.httpasyncclient-4.1.2.jar</included-library>
             <source-roots>
                 <root id="src.dir" name="Source Packages"/>
             </source-roots>
@@ -15,15 +27,6 @@
                 <root id="test.src.dir" name="Test Packages"/>
             </test-roots>
         </data>
-        <references xmlns="http://www.netbeans.org/ns/ant-project-references/1">
-            <reference>
-                <foreign-project>Library</foreign-project>
-                <artifact-type>jar</artifact-type>
-                <script>build.xml</script>
-                <target>jar</target>
-                <clean-target>clean</clean-target>
-                <id>jar</id>
-            </reference>
-        </references>
+        <references xmlns="http://www.netbeans.org/ns/ant-project-references/1"/>
     </configuration>
 </project>

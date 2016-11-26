@@ -780,16 +780,8 @@ exists or setup the property manually. For example like this:
     <!--
                 COMPILATION SECTION
             -->
-    <target depends="init" if="no.dist.ear.dir" name="-deps-module-jar" unless="no.deps">
-        <ant antfile="${project.Library}/build.xml" inheritall="false" target="jar">
-            <property name="deploy.on.save" value="false"/>
-        </ant>
-    </target>
-    <target depends="init" if="dist.ear.dir" name="-deps-ear-jar" unless="no.deps">
-        <ant antfile="${project.Library}/build.xml" inheritall="false" target="jar">
-            <property name="deploy.on.save" value="false"/>
-        </ant>
-    </target>
+    <target depends="init" if="no.dist.ear.dir" name="-deps-module-jar" unless="no.deps"/>
+    <target depends="init" if="dist.ear.dir" name="-deps-ear-jar" unless="no.deps"/>
     <target depends="init, -deps-module-jar, -deps-ear-jar" name="deps-jar"/>
     <target depends="init,deps-jar" name="-pre-pre-compile">
         <mkdir dir="${build.classes.dir}"/>
@@ -803,23 +795,71 @@ exists or setup the property manually. For example like this:
     <target if="is.jars.in.ejbjar" name="-library-inclusion-in-archive-by-user">
         <copyfiles files="${file.reference.gson-2.7.jar}" todir="${build.classes.dir}"/>
         <copyfiles files="${file.reference.log4j-1.2.17.jar}" todir="${build.classes.dir}"/>
-        <copyfiles files="${reference.Library.jar}" todir="${build.classes.dir}"/>
+        <copyfiles files="${file.reference.unirest-java-1.4.9.jar}" todir="${build.classes.dir}"/>
+        <copyfiles files="${file.reference.java-json.jar}" todir="${build.classes.dir}"/>
+        <copyfiles files="${file.reference.httpclient-4.5.2.jar}" todir="${build.classes.dir}"/>
+        <copyfiles files="${file.reference.httpclient-cache-4.5.2.jar}" todir="${build.classes.dir}"/>
+        <copyfiles files="${file.reference.httpclient-win-4.5.2.jar}" todir="${build.classes.dir}"/>
+        <copyfiles files="${file.reference.httpcore-4.4.4.jar}" todir="${build.classes.dir}"/>
+        <copyfiles files="${file.reference.httpmime-4.5.2.jar}" todir="${build.classes.dir}"/>
+        <copyfiles files="${file.reference.httpcore-nio-4.0.1.jar}" todir="${build.classes.dir}"/>
+        <copyfiles files="${file.reference.commons-logging-1.2.jar}" todir="${build.classes.dir}"/>
+        <copyfiles files="${file.reference.fluent-hc-4.5.2.jar}" todir="${build.classes.dir}"/>
+        <copyfiles files="${file.reference.jna-4.1.0.jar}" todir="${build.classes.dir}"/>
+        <copyfiles files="${file.reference.jna-platform-4.1.0.jar}" todir="${build.classes.dir}"/>
+        <copyfiles files="${file.reference.httpasyncclient-4.1.2.jar}" todir="${build.classes.dir}"/>
     </target>
     <target if="is.server.weblogic" name="-library-inclusion-in-archive-weblogic">
         <basename file="${file.reference.gson-2.7.jar}" property="manifest.file.reference.gson-2.7.jar"/>
         <basename file="${file.reference.log4j-1.2.17.jar}" property="manifest.file.reference.log4j-1.2.17.jar"/>
-        <basename file="${reference.Library.jar}" property="manifest.reference.Library.jar"/>
+        <basename file="${file.reference.unirest-java-1.4.9.jar}" property="manifest.file.reference.unirest-java-1.4.9.jar"/>
+        <basename file="${file.reference.java-json.jar}" property="manifest.file.reference.java-json.jar"/>
+        <basename file="${file.reference.httpclient-4.5.2.jar}" property="manifest.file.reference.httpclient-4.5.2.jar"/>
+        <basename file="${file.reference.httpclient-cache-4.5.2.jar}" property="manifest.file.reference.httpclient-cache-4.5.2.jar"/>
+        <basename file="${file.reference.httpclient-win-4.5.2.jar}" property="manifest.file.reference.httpclient-win-4.5.2.jar"/>
+        <basename file="${file.reference.httpcore-4.4.4.jar}" property="manifest.file.reference.httpcore-4.4.4.jar"/>
+        <basename file="${file.reference.httpmime-4.5.2.jar}" property="manifest.file.reference.httpmime-4.5.2.jar"/>
+        <basename file="${file.reference.httpcore-nio-4.0.1.jar}" property="manifest.file.reference.httpcore-nio-4.0.1.jar"/>
+        <basename file="${file.reference.commons-logging-1.2.jar}" property="manifest.file.reference.commons-logging-1.2.jar"/>
+        <basename file="${file.reference.fluent-hc-4.5.2.jar}" property="manifest.file.reference.fluent-hc-4.5.2.jar"/>
+        <basename file="${file.reference.jna-4.1.0.jar}" property="manifest.file.reference.jna-4.1.0.jar"/>
+        <basename file="${file.reference.jna-platform-4.1.0.jar}" property="manifest.file.reference.jna-platform-4.1.0.jar"/>
+        <basename file="${file.reference.httpasyncclient-4.1.2.jar}" property="manifest.file.reference.httpasyncclient-4.1.2.jar"/>
         <manifest file="${build.ear.classes.dir}/META-INF/MANIFEST.MF" mode="update">
-            <attribute name="Extension-List" value="jar-1 jar-2 jar-3 "/>
+            <attribute name="Extension-List" value="jar-1 jar-2 jar-3 jar-4 jar-5 jar-6 jar-7 jar-8 jar-9 jar-10 jar-11 jar-12 jar-13 jar-14 jar-15 "/>
             <attribute name="jar-1-Extension-Name" value="${manifest.file.reference.gson-2.7.jar}"/>
             <attribute name="jar-2-Extension-Name" value="${manifest.file.reference.log4j-1.2.17.jar}"/>
-            <attribute name="jar-3-Extension-Name" value="${manifest.reference.Library.jar}"/>
+            <attribute name="jar-3-Extension-Name" value="${manifest.file.reference.unirest-java-1.4.9.jar}"/>
+            <attribute name="jar-4-Extension-Name" value="${manifest.file.reference.java-json.jar}"/>
+            <attribute name="jar-5-Extension-Name" value="${manifest.file.reference.httpclient-4.5.2.jar}"/>
+            <attribute name="jar-6-Extension-Name" value="${manifest.file.reference.httpclient-cache-4.5.2.jar}"/>
+            <attribute name="jar-7-Extension-Name" value="${manifest.file.reference.httpclient-win-4.5.2.jar}"/>
+            <attribute name="jar-8-Extension-Name" value="${manifest.file.reference.httpcore-4.4.4.jar}"/>
+            <attribute name="jar-9-Extension-Name" value="${manifest.file.reference.httpmime-4.5.2.jar}"/>
+            <attribute name="jar-10-Extension-Name" value="${manifest.file.reference.httpcore-nio-4.0.1.jar}"/>
+            <attribute name="jar-11-Extension-Name" value="${manifest.file.reference.commons-logging-1.2.jar}"/>
+            <attribute name="jar-12-Extension-Name" value="${manifest.file.reference.fluent-hc-4.5.2.jar}"/>
+            <attribute name="jar-13-Extension-Name" value="${manifest.file.reference.jna-4.1.0.jar}"/>
+            <attribute name="jar-14-Extension-Name" value="${manifest.file.reference.jna-platform-4.1.0.jar}"/>
+            <attribute name="jar-15-Extension-Name" value="${manifest.file.reference.httpasyncclient-4.1.2.jar}"/>
         </manifest>
     </target>
     <target depends="compile" name="library-inclusion-in-manifest">
         <copyfiles files="${file.reference.gson-2.7.jar}" todir="${dist.ear.dir}/lib"/>
         <copyfiles files="${file.reference.log4j-1.2.17.jar}" todir="${dist.ear.dir}/lib"/>
-        <copyfiles files="${reference.Library.jar}" todir="${dist.ear.dir}/lib"/>
+        <copyfiles files="${file.reference.unirest-java-1.4.9.jar}" todir="${dist.ear.dir}/lib"/>
+        <copyfiles files="${file.reference.java-json.jar}" todir="${dist.ear.dir}/lib"/>
+        <copyfiles files="${file.reference.httpclient-4.5.2.jar}" todir="${dist.ear.dir}/lib"/>
+        <copyfiles files="${file.reference.httpclient-cache-4.5.2.jar}" todir="${dist.ear.dir}/lib"/>
+        <copyfiles files="${file.reference.httpclient-win-4.5.2.jar}" todir="${dist.ear.dir}/lib"/>
+        <copyfiles files="${file.reference.httpcore-4.4.4.jar}" todir="${dist.ear.dir}/lib"/>
+        <copyfiles files="${file.reference.httpmime-4.5.2.jar}" todir="${dist.ear.dir}/lib"/>
+        <copyfiles files="${file.reference.httpcore-nio-4.0.1.jar}" todir="${dist.ear.dir}/lib"/>
+        <copyfiles files="${file.reference.commons-logging-1.2.jar}" todir="${dist.ear.dir}/lib"/>
+        <copyfiles files="${file.reference.fluent-hc-4.5.2.jar}" todir="${dist.ear.dir}/lib"/>
+        <copyfiles files="${file.reference.jna-4.1.0.jar}" todir="${dist.ear.dir}/lib"/>
+        <copyfiles files="${file.reference.jna-platform-4.1.0.jar}" todir="${dist.ear.dir}/lib"/>
+        <copyfiles files="${file.reference.httpasyncclient-4.1.2.jar}" todir="${dist.ear.dir}/lib"/>
         <manifest file="${build.ear.classes.dir}/META-INF/MANIFEST.MF" mode="update"/>
     </target>
     <target name="-copy-meta-inf">
@@ -1202,9 +1242,7 @@ exists or setup the property manually. For example like this:
     <!--
                 CLEANUP SECTION
             -->
-    <target depends="init" name="deps-clean" unless="no.deps">
-        <ant antfile="${project.Library}/build.xml" inheritall="false" target="clean"/>
-    </target>
+    <target depends="init" name="deps-clean" unless="no.deps"/>
     <target depends="init" name="-do-clean">
         <delete dir="${build.dir}"/>
         <delete dir="${dist.dir}"/>
