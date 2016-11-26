@@ -167,15 +167,20 @@ public class ShipmentResource {
 //  }
 
     @POST
-    @Path("/confirm/{id}")
+    @Path("confirm")
     @Consumes(MediaType.APPLICATION_JSON)
-    //@Produces(MediaType.TEXT_HTML)
-    public Response confirmarRecepcion(@PathParam("id") String id){
+    public Response confirmarRecepcion(String id){
         Response r = null;
+        id = id.replace("\"id\": \"", "");
+        id = id.replace("\"", "");
+        id = id.replace("	", "");
+        id = id.replace("{", "");
+        id = id.replace("}", "");
+        id = id.replace(",", "");
+        id = id.trim();
         try {
-            System.out.println("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM");
-            boolean confirmado = false;
-            confirmado = shipmentBean.confirmarRecepcion(Long.valueOf(id));
+            boolean confirmado =
+                    shipmentBean.confirmarRecepcion(Long.valueOf(id));
             if (!confirmado) {
                 r = Response
                         .status(Response.Status.BAD_REQUEST)

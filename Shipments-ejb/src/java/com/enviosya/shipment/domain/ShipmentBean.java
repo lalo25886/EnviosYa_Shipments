@@ -220,7 +220,8 @@ public class ShipmentBean {
         String r="";
 	try {
 
-            URL url = new URL("http://localhost:8080/Cadets-war/cadet/getCadets");
+            String link = "http://localhost:8080/Cadets-war/cadet/getCadets";
+            URL url = new URL(link);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Accept", "application/json");
@@ -234,21 +235,22 @@ public class ShipmentBean {
             String output = "";
             int contador = 1;
             while ((output = br.readLine()) != null && contador <= 4) {
-                    r = output + "\n"; 
+                    r = output + "\n";
                     contador++;
             }
             conn.disconnect();
       } catch (MalformedURLException e) {
-            log.error("Error en getCadetesCercanos[1]: " + e.getMessage()); 
+            log.error("Error en getCadetesCercanos[1]: " + e.getMessage());
       } catch (IOException e) {
             log.error("Error en getCadetesCercanos[2]: " + e.getMessage());
       }
       return r;
 }
     public String getCadeteNotificar(Long idCadete) {
-        String r="";
+        String r = "";
 	try {
-            String link = "http://localhost:8080/Cadets-war/cadet/getCadet/"+idCadete.toString();
+            String link = "http://localhost:8080/Cadets-war/"
+                    + "cadet/getCadet/" + idCadete.toString();
             URL url = new URL(link);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
@@ -273,7 +275,7 @@ public class ShipmentBean {
       }
       return r;
     }
-    
+
     public double calcularCosto(double dato1,double dato2, double dato3){
         double retorno = 0;
         try {
@@ -288,11 +290,9 @@ public class ShipmentBean {
     }
 
     public String getDimensionesImagen(String dato) throws UnirestException {
-        String r="";
+        String r = "";
 	try {
-            System.out.println("PPPPPPPPPPPPPPPPPPPPPPPP"
-                    + "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPP"
-                    + "PPPPPPPPPPPPPPPPP: ");
+
             HttpResponse<JsonNode> response =
             Unirest.post("https://mathifonseca-ort-arqsoft-sizer-v1.p.mashape.com/dimensions")
             .header("X-Mashape-Key",
@@ -346,14 +346,14 @@ public class ShipmentBean {
                     + "Estimado cliente "
                     + amodificar.getIdClienteOrigen().toString()
                     + ", tenemos el agrado de informarle que el envío número "
-                    + amodificar.getId() + " fue recepcionado exitosamente. "
+                    + amodificar.getId().toString()
+                    + " fue recepcionado exitosamente. "
                     + "El cadete que realizó el envío es el número "
                     + amodificar.getIdCadete() + " y su correo electrónico es "
                     + cadeteNotif + ". "
                     + "Acceder al link para calificar el servicio y al cadete "
-                    + "<u>https://www.google.com.uy</b>"
-                    + "<b>EnviosYa! le agradece por su preferencia.</b>";
-
+                    + "https://www.google.com.uy "
+                    + "EnviosYa! le agradece por su preferencia.";
                 mailBean.enviarMail(mensajeEmisor);
                 log.info("Confirmación de envío (origen):" + remitenteNotif);
 
@@ -362,13 +362,14 @@ public class ShipmentBean {
                     + "Estimado cliente "
                     + amodificar.getIdClienteDestino().toString()
                     + ", tenemos el agrado de informarle que el envío número "
-                    + amodificar.getId() + " fue recepcionado exitosamente. "
+                    + amodificar.getId().toString()
+                    + " fue recepcionado exitosamente. "
                     + "El cadete que realizó el envío es el número "
                     + amodificar.getIdCadete() + " y su correo electrónico es "
                     + cadeteNotif + ". "
                     + "Acceder al link para calificar el servicio y al cadete "
-                    + "<u>https://www.google.com.uy</b>"
-                    + "<b>EnviosYa! le agradece por su preferencia.</b>";
+                    + "https://www.google.com.uy "
+                    + "EnviosYa! le agradece por su preferencia.";
 
                 mailBean.enviarMail(mensajeDestinatario);
                 log.info("Confirmación de envío (destino):" + remitenteNotif);
@@ -381,8 +382,8 @@ public class ShipmentBean {
     public String getClienteNotificar(Long idCliente) {
         String r = "";
 	try {
-            String link = "http://localhost:8080/Clients-war/client/"
-                    + "getClient/" + idCliente.toString();
+            String link = "http://localhost:8080/Clients-war/"
+                    + "client/getClient/" + idCliente.toString();
             URL url = new URL(link);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
@@ -399,7 +400,6 @@ public class ShipmentBean {
                     r = output;
             }
             conn.disconnect();
-
       } catch (MalformedURLException e) {
             log.error("Error en getCadeteNotificar[1]: " + e.getMessage());
       } catch (IOException e) {
