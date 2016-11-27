@@ -1,5 +1,7 @@
 package com.enviosya.shipment.domain;
 
+import com.enviosya.shipment.exception.DatoErroneoException;
+import com.enviosya.shipment.exception.EntidadNoExisteException;
 import com.enviosya.shipment.mail.MailBean;
 import com.enviosya.shipment.persistence.ShipmentEntity;
 import com.google.gson.Gson;
@@ -7,13 +9,14 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.sql.SQLDataException;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import javax.annotation.PostConstruct;
@@ -30,6 +33,7 @@ import javax.jms.Queue;
 import javax.jms.Session;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.xml.crypto.URIReferenceException;
 import org.apache.log4j.Logger;
 
 
@@ -44,7 +48,7 @@ public class ShipmentBean {
 
      @EJB
     MailBean mailBean;
-    
+
     static Logger log = Logger.getLogger("FILE");
     @Resource(lookup = "jms/ConnectionFactory")
     private ConnectionFactory connectionFactory;
@@ -57,25 +61,24 @@ public class ShipmentBean {
     @PersistenceContext
     private EntityManager em;
     @PostConstruct
-    
-    
-    
+
+
     private void init() {
     }
 
-    public ShipmentEntity agregar(ShipmentEntity unShipmentEntity) {
+    public ShipmentEntity agregar(ShipmentEntity unShipmentEntity)
+            throws DatoErroneoException {
         try {
-            
             em.persist(unShipmentEntity);
-        //    enviarCreacionEnvio(unShipmentEntity);
             return unShipmentEntity;
         } catch (Exception e) {
             log.error("Error en eliminar Shipment Entity: " + e.getMessage());
+            throw new DatoErroneoException("Error al agregar un shipment. "
+                    + "Verifique los datos ingresados.");
         }
-        return null;
     }
 
-    public ShipmentEntity agregar(String body) {
+    public ShipmentEntity agregar(String body) throws DatoErroneoException {
        try {
             Gson gson = new Gson();
             ShipmentEntity unEnvio = gson.fromJson(body, ShipmentEntity.class);
@@ -83,22 +86,26 @@ public class ShipmentBean {
             return unEnvio;
         } catch (Exception e) {
             log.error("Error en agregrar Shipment Entity: " + e.getMessage());
+            throw new DatoErroneoException("Error al agregar un shipment. "
+                    + "Verifique los datos ingresados.");
         }
-        return null;
     }
 
-    public ShipmentEntity modificar(ShipmentEntity unEnvioEntity) {
+    public ShipmentEntity modificar(ShipmentEntity unEnvioEntity)
+            throws EntidadNoExisteException {
         try {
             em.merge(unEnvioEntity);
             return unEnvioEntity;
         } catch (Exception e) {
             log.error("Error en modificar Shipment Entity: " + e.getMessage());
+            throw new EntidadNoExisteException("Error al modificar un shipment."
+                    + " El shipment con el id: " + unEnvioEntity.getId() + " "
+                    + "no se encuentra.");
         }
-        return null;
     }
 
-    public ShipmentEntity asignarCadete(Long id, Long idCad) {
-
+    public ShipmentEntity asignarCadete(Long id, Long idCad)
+            throws EntidadNoExisteException {
         try {
             ShipmentEntity amodificar =
                     em.find(ShipmentEntity.class, id);
@@ -107,13 +114,15 @@ public class ShipmentBean {
             enviarCreacionEnvio(amodificar);
             return amodificar;
         } catch (Exception e) {
-            log.error("Error en modificar Shipment Entity: " + e.getMessage());
+            log.error("Error al asginar un cadete: " + e.getMessage());
+            throw new EntidadNoExisteException("Error al asignar un cadete."
+                    + " El shipment con el id: " + id + " "
+                    + "no se encuentra.");
         }
-        return null;
     }
 
     private void enviarCreacionEnvio(ShipmentEntity unEnvio)
-            throws UnirestException {
+            throws Exception, JMSException {
 
         try (
             Connection connection = connectionFactory.createConnection();
@@ -139,11 +148,11 @@ public class ShipmentBean {
             MessageProducer productorDeMensajeCadete =
                     session.createProducer(queueCadete);
 
-            MessageProducer productorDeMensajeEmisor =
-                    session.createProducer(queueEmisor);
+//            MessageProducer productorDeMensajeEmisor =
+//                    session.createProducer(queueEmisor);
 
-            MessageProducer productorDeMensajeReceptor =
-                    session.createProducer(queueReceptor);
+//            MessageProducer productorDeMensajeReceptor =
+//                    session.createProducer(queueReceptor);
             String cadeteNotif = getCadeteNotificar(unEnvio.getIdCadete());
             Message mensaje =
             session.createTextMessage(cadeteNotif + " - Nuevo envío - "
@@ -173,11 +182,21 @@ public class ShipmentBean {
             mailBean.enviarMail(mensajeNuevo);
             log.info("Envio realizado:" + unEnvio.toString());
         } catch (JMSException ex) {
-            log.error("ERROR:"  + ex.getMessage());
+            log.error("ERROR: Ha ocurrido un error al enviar "
+                    + "un mensaje en la creación de "
+                    + "un envío"  + ex.getMessage());
+            throw new JMSException("Error en enviarCreacionEnvio. "
+                    + ex.getMessage());
+        }  catch (Exception e) {
+            log.error("ERROR: Ha ocurrido un error al enviar "
+                    + "un mensaje en la creación de "
+                    + "un envío"  + e.getMessage());
+            throw new Exception("Error en enviarCreacionEnvio. "
+                    + e.getMessage());
         }
     }
 
-    public boolean eliminar(ShipmentEntity unShipmentEntity) {
+    public boolean eliminar(ShipmentEntity unShipmentEntity)  throws Exception {
        try {
         ShipmentEntity aBorrar = em.find(ShipmentEntity.class,
                                          unShipmentEntity.getId());
@@ -185,44 +204,61 @@ public class ShipmentBean {
         return true;
         } catch (Exception e) {
              log.error("Error en eliminar Shipment Entity: " + e.getMessage());
+              throw new Exception("Error en eliminar. " + e.getMessage());
         }
-       return false;
     }
 
-    public List<ShipmentEntity> listar() {
-        List<ShipmentEntity> list =
-                em.createQuery("select e from ShipmentEntity e")
-                        .getResultList();
-        return list;
+    public List<ShipmentEntity> listar() throws Exception {
+        try {
+            List<ShipmentEntity> list =
+                    em.createQuery("select e from ShipmentEntity e")
+                            .getResultList();
+            return list;
+        } catch (Exception e) {
+             log.error("Error en listar Shipment Entity: " + e.getMessage());
+              throw new Exception("Error en listar. " + e.getMessage());
+        }
     }
 
-    public Shipment buscar(Long id) {
-        ShipmentEntity ent = em.find(ShipmentEntity.class, id);
-        Shipment e = new Shipment();
-        e.setId(ent.getId());
-        e.setDescripcion(ent.getDescripcion());
-        return e;
+    public Shipment buscar(Long id) throws EntidadNoExisteException { 
+        try {
+            ShipmentEntity ent = em.find(ShipmentEntity.class, id);
+            Shipment e = new Shipment();
+            e.setId(ent.getId());
+            e.setDescripcion(ent.getDescripcion());
+            return e;
+        } catch (Exception e) {
+            log.error("Error en buscar(Long id): " + e.getMessage());
+            throw new EntidadNoExisteException("Error al buscar un shipment. "
+                    + "El shipment con el id: " + id + " no "
+                    + "se encuentra.");
+        }
     }
 
-    public List<ShipmentEntity> buscar(String descripcion) {
+    public List<ShipmentEntity> buscar(String descripcion)
+            throws EntidadNoExisteException {
         List<ShipmentEntity> list = null;
         try {
             list = em.createQuery("select e "
                     + "from ShipmentEntity e "
                     + "where e.descripcion = :desc")
                     .setParameter("desc", descripcion).getResultList();
+            return list;
         } catch (Exception e) {
             log.error("Error en buscar(String descripcion): " + e.getMessage());
+            throw new EntidadNoExisteException("Error al buscar un shipment. "
+                    + "El shipment con la descripción: " + descripcion + " no "
+                    + "se encuentra.");
         }
-        return list;
     }
     //Metodo que devuelve los 4 cadetes mas proximos a la ubicación del
     // origen
-    public String getCadetesCercanos(String latitud, String longitud) {
+    public String getCadetesCercanos(String latitud, String longitud)
+            throws DatoErroneoException, MalformedURLException, IOException {
         String r = "";
+        String link = "";
 	try {
-
-            String link = "http://localhost:8080/Cadets-war/cadet/getCadets";
+            link = "http://localhost:8080/Cadets-war/cadet/getCadets";
             URL url = new URL(link);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
@@ -241,17 +277,25 @@ public class ShipmentBean {
                     contador++;
             }
             conn.disconnect();
+            return r;
       } catch (MalformedURLException e) {
             log.error("Error en getCadetesCercanos[1]: " + e.getMessage());
+            throw new MalformedURLException("Error en la URL: " + link);
       } catch (IOException e) {
             log.error("Error en getCadetesCercanos[2]: " + e.getMessage());
+            throw new IOException("Error en getCadetesCercanos.");
+      } catch (Exception e) {
+            log.error("Error en getCadetesCercanos[3]: " + e.getMessage());
+            throw new DatoErroneoException("Error en getCadetesCercanos[3]. "
+                    + e.getMessage());
       }
-      return r;
 }
-    public String getCadeteNotificar(Long idCadete) {
+    public String getCadeteNotificar(Long idCadete)
+            throws DatoErroneoException, MalformedURLException, IOException {
         String r = "";
+        String link = "";
 	try {
-            String link = "http://localhost:8080/Cadets-war/"
+            link = "http://localhost:8080/Cadets-war/"
                     + "cadet/getCadet/" + idCadete.toString();
             URL url = new URL(link);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -269,34 +313,44 @@ public class ShipmentBean {
                     r = output;
             }
             conn.disconnect();
-
-      } catch (MalformedURLException e) {
-            log.error("Error en getCadeteNotificar[1]: " + e.getMessage());
-      } catch (IOException e) {
-            log.error("Error en getCadeteNotificar[2]: " + e.getMessage());
-      }
-      return r;
+            return r;
+        } catch (MalformedURLException e) {
+               log.error("Error en getCadeteNotificar[1]: " + e.getMessage());
+               throw new MalformedURLException("Error en la URL: " + link);
+         } catch (IOException e) {
+               log.error("Error en getCadeteNotificar[2]: " + e.getMessage());
+               throw new IOException("Error en getCadeteNotificar.");
+         } catch (Exception e) {
+               log.error("Error en getCadeteNotificar[3]: " + e.getMessage());
+               throw new DatoErroneoException("Error en getCadeteNotificar[3]."
+                       + " " + e.getMessage());
+         }
     }
 
-    public double calcularCosto(double dato1,double dato2, double dato3){
+    public double calcularCosto(double dato1,double dato2, double dato3)
+            throws DatoErroneoException {
         double retorno = 0;
         try {
             retorno = dato1 * 3;
             retorno += (retorno +dato2) * 4;
             retorno += (retorno +dato3) * 2;
+            return retorno;
         } catch (Exception e) {
             log.error("Error al calcular el "
                     + "costo del Shipment: " + e.getMessage());
+            throw new DatoErroneoException("Error en calcularCosto."
+                       + " " + e.getMessage());
         }
-        return retorno;
     }
 
-    public String getDimensionesImagen(String dato) throws UnirestException {
+    public String getDimensionesImagen(String dato) throws UnirestException,
+             Exception {
         String r = "";
+        String link = "";
 	try {
-
-            HttpResponse<JsonNode> response =
-            Unirest.post("https://mathifonseca-ort-arqsoft-sizer-v1.p.mashape.com/dimensions")
+            link = "https://mathifonseca-ort-arqsoft-sizer-v1."
+                    + "p.mashape.com/dimensions";
+            HttpResponse<JsonNode> response = Unirest.post(link)
             .header("X-Mashape-Key",
                     "eTrCJvP4D6mshPu4UGwWBw8p5mdwp16MJUIjsn60S9YjmloF4h")
             .header("Content-Type", "application/json")
@@ -305,14 +359,14 @@ public class ShipmentBean {
             .body("{\"image\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAB+FBMVEUAAAA/mUPidDHiLi5Cn0XkNTPmeUrkdUg/m0Q0pEfcpSbwaVdKskg+lUP4zA/iLi3msSHkOjVAmETdJSjtYFE/lkPnRj3sWUs8kkLeqCVIq0fxvhXqUkbVmSjwa1n1yBLepyX1xxP0xRXqUkboST9KukpHpUbuvRrzrhF/ljbwaljuZFM4jELaoSdLtElJrUj1xxP6zwzfqSU4i0HYnydMtUlIqUfywxb60AxZqEXaoifgMCXptR9MtklHpEY2iUHWnSjvvRr70QujkC+pUC/90glMuEnlOjVMt0j70QriLS1LtEnnRj3qUUXfIidOjsxAhcZFo0bjNDH0xxNLr0dIrUdmntVTkMoyfL8jcLBRuErhJyrgKyb4zA/5zg3tYFBBmUTmQTnhMinruBzvvhnxwxZ/st+Ktt5zp9hqota2vtK6y9FemNBblc9HiMiTtMbFtsM6gcPV2r6dwroseLrMrbQrdLGdyKoobKbo3Zh+ynrgVllZulTsXE3rV0pIqUf42UVUo0JyjEHoS0HmsiHRGR/lmRz/1hjqnxjvpRWfwtOhusaz0LRGf7FEfbDVmqHXlJeW0pbXq5bec3fX0nTnzmuJuWvhoFFhm0FtrziBsjaAaDCYWC+uSi6jQS3FsSfLJiTirCOkuCG1KiG+wSC+GBvgyhTszQ64Z77KAAAARXRSTlMAIQRDLyUgCwsE6ebm5ubg2dLR0byXl4FDQzU1NDEuLSUgC+vr6urq6ubb29vb2tra2tG8vLu7u7uXl5eXgYGBgYGBLiUALabIAAABsElEQVQoz12S9VPjQBxHt8VaOA6HE+AOzv1wd7pJk5I2adpCC7RUcHd3d3fXf5PvLkxheD++z+yb7GSRlwD/+Hj/APQCZWxM5M+goF+RMbHK594v+tPoiN1uHxkt+xzt9+R9wnRTZZQpXQ0T5uP1IQxToyOAZiQu5HEpjeA4SWIoksRxNiGC1tRZJ4LNxgHgnU5nJZBDvuDdl8lzQRBsQ+s9PZt7s7Pz8wsL39/DkIfZ4xlB2Gqsq62ta9oxVlVrNZpihFRpGO9fzQw1ms0NDWZz07iGkJmIFH8xxkc3a/WWlubmFkv9AB2SEpDvKxbjidN2faseaNV3zoHXvv7wMODJdkOHAegweAfFPx4G67KluxzottCU9n8CUqXzcIQdXOytAHqXxomvykhEKN9EFutG22p//0rbNvHVxiJywa8yS2KDfV1dfbu31H8jF1RHiTKtWYeHxUvq3bn0pyjCRaiRU6aDO+gb3aEfEeVNsDgm8zzLy9egPa7Qt8TSJdwhjplk06HH43ZNJ3s91KKCHQ5x4sw1fRGYDZ0n1L4FKb9/BP5JLYxToheoFCVxz57PPS8UhhEpLBVeAAAAAElFTkSuQmCC\"}")
             .asJson();
             r = response.toString();
-            System.out.println("RESPUESTA DE DIMENSION: "
-                    + response.toString());
+            return r;
         } catch (UnirestException e) {
-            log.error("Error en getDimensionesImagen[1]: " + e.getMessage());
+               log.error("Error en getDimensionesImagen[1]: " + e.getMessage());
+               throw new UnirestException("Error en getDimensionesImagen.");
         } catch (Exception e) {
-            log.error("Error en getDimensionesImagen[2]: " + e.getMessage());
-      }
-      return r;
+               log.error("Error en getDimensionesImagen[2]: " + e.getMessage());
+               throw new Exception("Error en getDimensionesImagen.");
+         }
     }
     //El tipo es 0 latitud y 1 longitud
     //La idea es generar un methodo que conusma algun
@@ -327,7 +381,8 @@ public class ShipmentBean {
         return dir;
     }
 
-    public boolean confirmarRecepcion(Long id) {
+    public boolean confirmarRecepcion(Long id)
+            throws DatoErroneoException {
         int valor = 1;
         boolean  retorno = false;
         try {
@@ -377,11 +432,15 @@ public class ShipmentBean {
                 log.info("Confirmación de envío (destino):" + remitenteNotif);
             }
         } catch (Exception e) {
-            log.error("Error en confirmarRecepcion: " + e.getMessage());
+             log.error("Error en confirmarRecepcion: " + e.getMessage());
+            throw new DatoErroneoException("Error en confirmarRecepcion."
+                    + "" + e.getMessage());
         }
         return retorno;
     }
-    public String getClienteNotificar(Long idCliente) {
+
+    public String getClienteNotificar(Long idCliente)
+            throws MalformedURLException, DatoErroneoException, IOException {
         String r = "";
 	try {
             String link = "http://localhost:8080/Clients-war/"
@@ -403,14 +462,23 @@ public class ShipmentBean {
             }
             conn.disconnect();
       } catch (MalformedURLException e) {
-            log.error("Error en getCadeteNotificar[1]: " + e.getMessage());
+            log.error("Error en getClienteNotificar[1]: " + e.getMessage());
+            throw new MalformedURLException("Error en getClienteNotificar[1]."
+                    + "" + e.getMessage());
       } catch (IOException e) {
-            log.error("Error en getCadeteNotificar[2]: " + e.getMessage());
+             log.error("Error en getClienteNotificar[2]: " + e.getMessage());
+            throw new IOException("Error en getClienteNotificar[2]."
+                    + "" + e.getMessage());
+      } catch (Exception e) {
+             log.error("Error en getClienteNotificar[3]: " + e.getMessage());
+            throw new DatoErroneoException("Error en getClienteNotificar[3]."
+                    + "" + e.getMessage());
       }
       return r;
     }
 
-    public boolean esCliente(Long id, Long idCli) {
+    public boolean esCliente(Long id, Long idCli)
+            throws EntidadNoExisteException {
         boolean retorno = false;
         try {
             ShipmentEntity envio = em.find(ShipmentEntity.class, id);
@@ -419,7 +487,9 @@ public class ShipmentBean {
                 retorno = true;
             }
         } catch (Exception e) {
-            log.error("Error en esCliente: " + e.getMessage());
+             log.error("Error en esCliente[1]: " + e.getMessage());
+            throw new EntidadNoExisteException("Error en esCliente[1]."
+                    + "" + e.getMessage());
         }
         return retorno;
     }

@@ -119,6 +119,4 @@ public class Shipment {
     public String toString() {
         return "ID = " + id ;
     }
-    
-    
 }

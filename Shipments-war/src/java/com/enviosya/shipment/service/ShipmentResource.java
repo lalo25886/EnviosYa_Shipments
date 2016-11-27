@@ -3,19 +3,21 @@ package com.enviosya.shipment.service;
 
 
 import com.enviosya.shipment.domain.ShipmentBean;
+import com.enviosya.shipment.exception.DatoErroneoException;
+import com.enviosya.shipment.exception.EntidadNoExisteException;
 import com.enviosya.shipment.persistence.ShipmentEntity;
 import com.google.gson.Gson;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.MalformedURLException;
 import java.util.List;
 import javax.ejb.EJB;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
@@ -40,7 +42,7 @@ public class ShipmentResource {
     @GET
     @Path("getShipments")
     @Produces(MediaType.APPLICATION_JSON)
-    public String getJson() {
+    public String getJson() throws Exception {
         List<ShipmentEntity> list = shipmentBean.listar();
         Gson gson = new Gson();
         return gson.toJson(list);
@@ -49,7 +51,8 @@ public class ShipmentResource {
     @POST
     @Path("add")
     @Consumes(MediaType.APPLICATION_JSON)
-    public String agregar(String body) {
+    public String agregar(String body)
+            throws DatoErroneoException, MalformedURLException, IOException {
         Gson gson = new Gson();
         ShipmentEntity u = gson.fromJson(body, ShipmentEntity.class);
         String r;
@@ -60,7 +63,8 @@ public class ShipmentResource {
                     .entity("Shipment")
                     .build().toString();
         } else {
-            r = shipmentBean.getCadetesCercanos(u.getOrigenLatitud(), u.getOrigenLongitud());  
+            r = shipmentBean.getCadetesCercanos(u.getOrigenLatitud(),
+                                                u.getOrigenLongitud());
         }
         return r;
     }
@@ -68,7 +72,8 @@ public class ShipmentResource {
     @POST
     @Path("assignCadet")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response asignarCadete(InputStream data){
+    public Response asignarCadete(InputStream data)
+            throws EntidadNoExisteException {
         Response r = null;
         String linea = "";
         String[] datos = new String[2];
@@ -115,7 +120,7 @@ public class ShipmentResource {
     @POST
     @Path("update")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response modificar(String body) {
+    public Response modificar(String body) throws EntidadNoExisteException {
         Gson gson = new Gson();
         ShipmentEntity u = gson.fromJson(body, ShipmentEntity.class);
         Response r;
@@ -137,7 +142,7 @@ public class ShipmentResource {
     @POST
     @Path("delete")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response eliminar(String body) {
+    public Response eliminar(String body) throws Exception {
         Gson gson = new Gson();
         ShipmentEntity u = gson.fromJson(body, ShipmentEntity.class);
         Response r;
@@ -171,7 +176,7 @@ public class ShipmentResource {
     @POST
     @Path("confirm")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response confirmarRecepcion(String id){
+    public Response confirmarRecepcion(String id) {
         Response r = null;
         id = id.replace("\"id\": \"", "");
         id = id.replace("\"", "");
