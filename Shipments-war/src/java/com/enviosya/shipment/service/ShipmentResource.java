@@ -6,6 +6,7 @@ import com.enviosya.shipment.domain.ShipmentBean;
 import com.enviosya.shipment.persistence.ShipmentEntity;
 import com.google.gson.Gson;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.List;
@@ -63,7 +64,7 @@ public class ShipmentResource {
         }
         return r;
     }
-    
+
     @POST
     @Path("assignCadet")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -84,15 +85,16 @@ public class ShipmentResource {
                 linea = linea.replace(",", "");
                 linea = linea.trim();
 
-                if(!linea.equalsIgnoreCase("")){
-                    datos[contador]=linea;
+                if (!linea.equalsIgnoreCase("")) {
+                    datos[contador] = linea;
                     contador++;
                 }
             }
             Long id = Long.valueOf(datos[0]);
             Long idCadete = Long.valueOf(datos[1]);
             Gson gson = new Gson();
-            ShipmentEntity modificado = shipmentBean.asignarCadete(id,idCadete);
+            ShipmentEntity modificado =
+                    shipmentBean.asignarCadete(id, idCadete);
             if (modificado == null) {
                 r = Response
                         .status(Response.Status.BAD_REQUEST)
@@ -104,7 +106,7 @@ public class ShipmentResource {
                         .entity(gson.toJson(modificado))
                         .build();
             }
-            } catch (Exception e){
+            } catch (IOException | NumberFormatException e) {
                 System.out.println(e.getMessage());
             }
         return r;
@@ -196,6 +198,44 @@ public class ShipmentResource {
                 System.out.println(e.getMessage());
             }
         return r;
+    }
+
+    @POST
+    @Path("isclient")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public boolean esCliente(InputStream input) throws IOException{
+        boolean retorno = false;
+        String linea = "";
+        String vacio = "";
+        int contador = 0;
+        String[] datos = new String[2];
+        try {
+            BufferedReader in =
+                    new BufferedReader(new InputStreamReader(input));
+            while ((linea = in.readLine()) != null) {
+                linea = linea.replace("\"id\": \"", "");
+                linea = linea.replace("\"idCliente\": \"", "");
+                linea = linea.replace("\"", "");
+                linea = linea.replace("	", "");
+                linea = linea.replace("{", "");
+                linea = linea.replace("}", "");
+                linea = linea.replace("\\n", "");
+                linea = linea.replace(",", "");
+                linea = linea.trim();
+                if (!linea.equalsIgnoreCase(vacio)) {
+                    datos[contador] = linea;
+                    contador++;
+                }
+            }
+            Long id = Long.valueOf(datos[0]);
+            Long idCliente = Long.valueOf(datos[1]);
+            retorno = shipmentBean.esCliente(id, idCliente);
+
+            } catch (Exception e) {
+                System.out.println("ERROR en esCliente "
+                        + "(Resource) :" + e.getMessage());
+            }
+        return retorno;
     }
 }
 

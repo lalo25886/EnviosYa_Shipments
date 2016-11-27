@@ -15,6 +15,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.ejb.EJB;
@@ -125,11 +126,11 @@ public class ShipmentBean {
             double dato2 = 2;
             double dato3 = 2;
             double costo = calcularCosto(dato1, dato2, dato3);
-            String dirOrigen = 
+            String dirOrigen =
                     convertirUbicacion(unEnvio.getOrigenLatitud(),
                                        unEnvio.getOrigenLongitud(),
                                        0);
-            String dirDestino = 
+            String dirDestino =
                     convertirUbicacion(unEnvio.getDestinoLatitud(),
                                        unEnvio.getDestinoLongitud(),
                                        1);
@@ -178,7 +179,7 @@ public class ShipmentBean {
 
     public boolean eliminar(ShipmentEntity unShipmentEntity) {
        try {
-        ShipmentEntity aBorrar = em.find(ShipmentEntity.class, 
+        ShipmentEntity aBorrar = em.find(ShipmentEntity.class,
                                          unShipmentEntity.getId());
         em.remove(aBorrar);
         return true;
@@ -190,7 +191,8 @@ public class ShipmentBean {
 
     public List<ShipmentEntity> listar() {
         List<ShipmentEntity> list =
-                em.createQuery("select e from ShipmentEntity e").getResultList();
+                em.createQuery("select e from ShipmentEntity e")
+                        .getResultList();
         return list;
     }
 
@@ -209,15 +211,15 @@ public class ShipmentBean {
                     + "from ShipmentEntity e "
                     + "where e.descripcion = :desc")
                     .setParameter("desc", descripcion).getResultList();
-        }catch(Exception e){
+        } catch (Exception e) {
             log.error("Error en buscar(String descripcion): " + e.getMessage());
-        }    
+        }
         return list;
     }
-    //Metodo que devuelve los 4 cadetes mas proximos a la ubicación del 
+    //Metodo que devuelve los 4 cadetes mas proximos a la ubicación del
     // origen
     public String getCadetesCercanos(String latitud, String longitud) {
-        String r="";
+        String r = "";
 	try {
 
             String link = "http://localhost:8080/Cadets-war/cadet/getCadets";
@@ -406,5 +408,19 @@ public class ShipmentBean {
             log.error("Error en getCadeteNotificar[2]: " + e.getMessage());
       }
       return r;
+    }
+
+    public boolean esCliente(Long id, Long idCli) {
+        boolean retorno = false;
+        try {
+            ShipmentEntity envio = em.find(ShipmentEntity.class, id);
+            if (Objects.equals(envio.getIdClienteDestino(), idCli)
+                    || Objects.equals(envio.getIdClienteOrigen(), idCli)) {
+                retorno = true;
+            }
+        } catch (Exception e) {
+            log.error("Error en esCliente: " + e.getMessage());
+        }
+        return retorno;
     }
 }
