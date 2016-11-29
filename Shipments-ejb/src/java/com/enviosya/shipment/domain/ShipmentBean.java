@@ -3,7 +3,9 @@ package com.enviosya.shipment.domain;
 import com.enviosya.shipment.exception.DatoErroneoException;
 import com.enviosya.shipment.exception.EntidadNoExisteException;
 import com.enviosya.shipment.mail.MailBean;
+import com.enviosya.shipment.tool.CalculateCostBean;
 import com.enviosya.shipment.persistence.ShipmentEntity;
+import com.enviosya.shipment.tool.CalculateCostBean;
 import com.google.gson.Gson;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
@@ -12,6 +14,7 @@ import com.mashape.unirest.http.exceptions.UnirestException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -46,8 +49,10 @@ import org.apache.log4j.Logger;
 public class ShipmentBean {
 
 
-     @EJB
+    @EJB
     MailBean mailBean;
+    @EJB
+    CalculateCostBean calculate;
 
     static Logger log = Logger.getLogger("FILE");
     @Resource(lookup = "jms/ConnectionFactory")
@@ -107,10 +112,11 @@ public class ShipmentBean {
     public ShipmentEntity asignarCadete(Long id, Long idCad)
             throws EntidadNoExisteException {
         try {
-            ShipmentEntity amodificar =
-                    em.find(ShipmentEntity.class, id);
+            ShipmentEntity amodificar = em.find(ShipmentEntity.class, id);
             amodificar.setIdCadete(idCad);
             em.merge(amodificar);
+            Gson gson = new Gson();
+            //gson.toJson(amodificar);
             enviarCreacionEnvio(amodificar);
             return amodificar;
         } catch (Exception e) {
@@ -127,14 +133,17 @@ public class ShipmentBean {
         try (
             Connection connection = connectionFactory.createConnection();
             Session session = connection.createSession()) {
+
             //Acá consulto el servicio provisto por
             //Mathias para luego calcular
             //el costo del envío
-           // String dimension = getDimensionesImagen("");
+            //String dimension = getDimensionesImagen("");
             double dato1 = 2;
             double dato2 = 2;
             double dato3 = 2;
-            double costo = calcularCosto(dato1, dato2, dato3);
+
+            double costo = calculate.calcularCosto(dato1, dato2, dato3);
+
             String dirOrigen =
                     convertirUbicacion(unEnvio.getOrigenLatitud(),
                                        unEnvio.getOrigenLongitud(),
@@ -144,10 +153,8 @@ public class ShipmentBean {
                                        unEnvio.getDestinoLongitud(),
                                        1);
 
-
             MessageProducer productorDeMensajeCadete =
                     session.createProducer(queueCadete);
-
 //            MessageProducer productorDeMensajeEmisor =
 //                    session.createProducer(queueEmisor);
 
@@ -166,7 +173,6 @@ public class ShipmentBean {
                     + "La dirección de origen es: " + dirOrigen
                     + " y la dirección de destino es: " + dirDestino + ".");
             productorDeMensajeCadete.send(mensaje);
-
             String mensajeNuevo = cadeteNotif + " - Nuevo envío - "
                     + "Estimado cadete "
                     + unEnvio.getIdCadete().toString()
@@ -178,7 +184,6 @@ public class ShipmentBean {
                     + "La dirección de origen es: " + dirOrigen
                     + " y la dirección de destino es: " + dirDestino + "."
                     + "";
-
             mailBean.enviarMail(mensajeNuevo);
             log.info("Envio realizado:" + unEnvio.toString());
         } catch (JMSException ex) {
@@ -326,48 +331,109 @@ public class ShipmentBean {
                        + " " + e.getMessage());
          }
     }
-
-    public double calcularCosto(double dato1,double dato2, double dato3)
-            throws DatoErroneoException {
-        double retorno = 0;
-        try {
-            retorno = dato1 * 3;
-            retorno += (retorno +dato2) * 4;
-            retorno += (retorno +dato3) * 2;
-            return retorno;
-        } catch (Exception e) {
-            log.error("Error al calcular el "
-                    + "costo del Shipment: " + e.getMessage());
-            throw new DatoErroneoException("Error en calcularCosto."
-                       + " " + e.getMessage());
-        }
-    }
-
-    public String getDimensionesImagen(String dato) throws UnirestException,
-             Exception {
-        String r = "";
-        String link = "";
-	try {
-            link = "https://mathifonseca-ort-arqsoft-sizer-v1."
+    public String getDimensionesImagen(String dato) throws RuntimeException {
+        String link = "https://mathifonseca-ort-arqsoft-sizer-v1."
                     + "p.mashape.com/dimensions";
-            HttpResponse<JsonNode> response = Unirest.post(link)
-            .header("X-Mashape-Key",
-                    "eTrCJvP4D6mshPu4UGwWBw8p5mdwp16MJUIjsn60S9YjmloF4h")
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json")
-            //.body("{\"image\":\"data:image/"+dato+"\"}")
-            .body("{\"image\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAB+FBMVEUAAAA/mUPidDHiLi5Cn0XkNTPmeUrkdUg/m0Q0pEfcpSbwaVdKskg+lUP4zA/iLi3msSHkOjVAmETdJSjtYFE/lkPnRj3sWUs8kkLeqCVIq0fxvhXqUkbVmSjwa1n1yBLepyX1xxP0xRXqUkboST9KukpHpUbuvRrzrhF/ljbwaljuZFM4jELaoSdLtElJrUj1xxP6zwzfqSU4i0HYnydMtUlIqUfywxb60AxZqEXaoifgMCXptR9MtklHpEY2iUHWnSjvvRr70QujkC+pUC/90glMuEnlOjVMt0j70QriLS1LtEnnRj3qUUXfIidOjsxAhcZFo0bjNDH0xxNLr0dIrUdmntVTkMoyfL8jcLBRuErhJyrgKyb4zA/5zg3tYFBBmUTmQTnhMinruBzvvhnxwxZ/st+Ktt5zp9hqota2vtK6y9FemNBblc9HiMiTtMbFtsM6gcPV2r6dwroseLrMrbQrdLGdyKoobKbo3Zh+ynrgVllZulTsXE3rV0pIqUf42UVUo0JyjEHoS0HmsiHRGR/lmRz/1hjqnxjvpRWfwtOhusaz0LRGf7FEfbDVmqHXlJeW0pbXq5bec3fX0nTnzmuJuWvhoFFhm0FtrziBsjaAaDCYWC+uSi6jQS3FsSfLJiTirCOkuCG1KiG+wSC+GBvgyhTszQ64Z77KAAAARXRSTlMAIQRDLyUgCwsE6ebm5ubg2dLR0byXl4FDQzU1NDEuLSUgC+vr6urq6ubb29vb2tra2tG8vLu7u7uXl5eXgYGBgYGBLiUALabIAAABsElEQVQoz12S9VPjQBxHt8VaOA6HE+AOzv1wd7pJk5I2adpCC7RUcHd3d3fXf5PvLkxheD++z+yb7GSRlwD/+Hj/APQCZWxM5M+goF+RMbHK594v+tPoiN1uHxkt+xzt9+R9wnRTZZQpXQ0T5uP1IQxToyOAZiQu5HEpjeA4SWIoksRxNiGC1tRZJ4LNxgHgnU5nJZBDvuDdl8lzQRBsQ+s9PZt7s7Pz8wsL39/DkIfZ4xlB2Gqsq62ta9oxVlVrNZpihFRpGO9fzQw1ms0NDWZz07iGkJmIFH8xxkc3a/WWlubmFkv9AB2SEpDvKxbjidN2faseaNV3zoHXvv7wMODJdkOHAegweAfFPx4G67KluxzottCU9n8CUqXzcIQdXOytAHqXxomvykhEKN9EFutG22p//0rbNvHVxiJywa8yS2KDfV1dfbu31H8jF1RHiTKtWYeHxUvq3bn0pyjCRaiRU6aDO+gb3aEfEeVNsDgm8zzLy9egPa7Qt8TSJdwhjplk06HH43ZNJ3s91KKCHQ5x4sw1fRGYDZ0n1L4FKb9/BP5JLYxToheoFCVxz57PPS8UhhEpLBVeAAAAAElFTkSuQmCC\"}")
-            .asJson();
-            r = response.toString();
-            return r;
-        } catch (UnirestException e) {
-               log.error("Error en getDimensionesImagen[1]: " + e.getMessage());
-               throw new UnirestException("Error en getDimensionesImagen.");
-        } catch (Exception e) {
-               log.error("Error en getDimensionesImagen[2]: " + e.getMessage());
-               throw new Exception("Error en getDimensionesImagen.");
-         }
-    }
+        System.out.println("GET DIMENSIONES 1");
+        System.out.println(link);
+        try {
+		URL url = new URL(link);
+		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+		conn.setDoOutput(true);
+		conn.setRequestMethod("POST");
+		conn.setRequestProperty("Content-Type", "application/json");
+
+		String input = "{\"image\":\"data:image/png;base64,iVBORw0KGgoA"
+                        + "AAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAB+FBMVEUAAAA/mUP"
+                        + "idDHiLi5Cn0XkNTPmeUrkdUg/m0Q0pEfcpSbwaVdKskg+lUP4"
+                        + "zA/iLi3msSHkOjVAmETdJSjtYFE/lkPnRj3sWUs8kkLeqCVIq"
+                        + "0fxvhXqUkbVmSjwa1n1yBLepyX1xxP0xRXqUkboST9KukpHpU"
+                        + "buvRrzrhF/ljbwaljuZFM4jELaoSdLtElJrUj1xxP6zwzfqSU"
+                        + "4i0HYnydMtUlIqUfywxb60AxZqEXaoifgMCXptR9MtklHpEY2"
+                        + "iUHWnSjvvRr70QujkC+pUC/90glMuEnlOjVMt0j70QriLS1Lt"
+                        + "EnnRj3qUUXfIidOjsxAhcZFo0bjNDH0xxNLr0dIrUdmntVTk"
+                        + "MoyfL8jcLBRuErhJyrgKyb4zA/5zg3tYFBBmUTmQTnhMinruB"
+                        + "zvvhnxwxZ/st+Ktt5zp9hqota2vtK6y9FemNBblc9HiMiTtMb"
+                        + "FtsM6gcPV2r6dwroseLrMrbQrdLGdyKoobKbo3Zh+ynrgVllZ"
+                        + "ulTsXE3rV0pIqUf42UVUo0JyjEHoS0HmsiHRGR/lmRz/1hjqnx"
+                        + "jvpRWfwtOhusaz0LRGf7FEfbDVmqHXlJeW0pbXq5bec3fX0nTn"
+                        + "zmuJuWvhoFFhm0FtrziBsjaAaDCYWC+uSi6jQS3FsSfLJiTi"
+                        + "rCOkuCG1KiG+wSC+GBvgyhTszQ64Z77KAAAARXRSTlMAIQRD"
+                        + "LyUgCwsE6ebm5ubg2dLR0byXl4FDQzU1NDEuLSUgC+vr6urq6"
+                        + "ubb29vb2tra2tG8vLu7u7uXl5eXgYGBgYGBLiUALabIAAABsE"
+                        + "lEQVQoz12S9VPjQBxHt8VaOA6HE+AOzv1wd7pJk5I2adpCC7R"
+                        + "UcHd3d3fXf5PvLkxheD++z+yb7GSRlwD/+Hj/APQCZWxM5M+g"
+                        + "oF+RMbHK594v+tPoiN1uHxkt+xzt9+R9wnRTZZQpXQ0T5uP1I"
+                        + "QxToyOAZiQu5HEpjeA4SWIoksRxNiGC1tRZJ4LNxgHgnU5nJZ"
+                        + "BDvuDdl8lzQRBsQ+s9PZt7s7Pz8wsL39/DkIfZ4xlB2Gqsq62"
+                        + "ta9oxVlVrNZpihFRpGO9fzQw1ms0NDWZz07iGkJmIFH8xxkc3a"
+                        + "/WWlubmFkv9AB2SEpDvKxbjidN2faseaNV3zoHXvv7wMODJdkO"
+                        + "HAegweAfFPx4G67KluxzottCU9n8CUqXzcIQdXOytAHqXxomvy"
+                        + "khEKN9EFutG22p//0rbNvHVxiJywa8yS2KDfV1dfbu31H8jF1"
+                        + "RHiTKtWYeHxUvq3bn0pyjCRaiRU6aDO+gb3aEfEeVNsDgm8zz"
+                        + "Ly9egPa7Qt8TSJdwhjplk06HH43ZNJ3s91KKCHQ5x4sw1fRGY"
+                        + "DZ0n1L4FKb9/BP5JLYxToheoFCVxz57PPS8UhhEpLBVeAAAAA"
+                        + "ElFTkSuQmCC\"}";
+
+		OutputStream os = conn.getOutputStream();
+		os.write(input.getBytes());
+		os.flush();
+                System.out.println("GET DIMENSIONES 2");
+                //Acá se rompe
+		if (conn.getResponseCode() != HttpURLConnection.HTTP_CREATED) {
+			throw new RuntimeException("Failed : HTTP error code : "
+				+ conn.getResponseCode());
+		}
+                System.out.println("GET DIMENSIONES 3");
+		BufferedReader br = new BufferedReader(new InputStreamReader(
+				(conn.getInputStream())));
+                System.out.println("GET DIMENSIONES 4");
+		String output;
+		System.out.println("Output from Server .... \n");
+		while ((output = br.readLine()) != null) {
+			System.out.println("LALO: " + output);
+		}
+
+		conn.disconnect();
+
+	  } catch (MalformedURLException e) {
+
+		e.printStackTrace();
+
+	  } catch (IOException e) {
+
+		e.printStackTrace();
+
+	 }
+        return "";
+	}
+    
+    
+//    public String getDimensionesImagen(String dato) throws UnirestException,
+//             Exception {
+//        String r = "";
+//        String link = "";
+//	try {
+//            link = "https://mathifonseca-ort-arqsoft-sizer-v1."
+//                    + "p.mashape.com/dimensions";
+//            HttpResponse<JsonNode> response = Unirest.post(link)
+//            .header("X-Mashape-Key",
+//                    "eTrCJvP4D6mshPu4UGwWBw8p5mdwp16MJUIjsn60S9YjmloF4h")
+//            .header("Content-Type", "application/json")
+//            .header("Accept", "application/json")
+//            //.body("{\"image\":\"data:image/"+dato+"\"}")
+//            .body("{\"image\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAB+FBMVEUAAAA/mUPidDHiLi5Cn0XkNTPmeUrkdUg/m0Q0pEfcpSbwaVdKskg+lUP4zA/iLi3msSHkOjVAmETdJSjtYFE/lkPnRj3sWUs8kkLeqCVIq0fxvhXqUkbVmSjwa1n1yBLepyX1xxP0xRXqUkboST9KukpHpUbuvRrzrhF/ljbwaljuZFM4jELaoSdLtElJrUj1xxP6zwzfqSU4i0HYnydMtUlIqUfywxb60AxZqEXaoifgMCXptR9MtklHpEY2iUHWnSjvvRr70QujkC+pUC/90glMuEnlOjVMt0j70QriLS1LtEnnRj3qUUXfIidOjsxAhcZFo0bjNDH0xxNLr0dIrUdmntVTkMoyfL8jcLBRuErhJyrgKyb4zA/5zg3tYFBBmUTmQTnhMinruBzvvhnxwxZ/st+Ktt5zp9hqota2vtK6y9FemNBblc9HiMiTtMbFtsM6gcPV2r6dwroseLrMrbQrdLGdyKoobKbo3Zh+ynrgVllZulTsXE3rV0pIqUf42UVUo0JyjEHoS0HmsiHRGR/lmRz/1hjqnxjvpRWfwtOhusaz0LRGf7FEfbDVmqHXlJeW0pbXq5bec3fX0nTnzmuJuWvhoFFhm0FtrziBsjaAaDCYWC+uSi6jQS3FsSfLJiTirCOkuCG1KiG+wSC+GBvgyhTszQ64Z77KAAAARXRSTlMAIQRDLyUgCwsE6ebm5ubg2dLR0byXl4FDQzU1NDEuLSUgC+vr6urq6ubb29vb2tra2tG8vLu7u7uXl5eXgYGBgYGBLiUALabIAAABsElEQVQoz12S9VPjQBxHt8VaOA6HE+AOzv1wd7pJk5I2adpCC7RUcHd3d3fXf5PvLkxheD++z+yb7GSRlwD/+Hj/APQCZWxM5M+goF+RMbHK594v+tPoiN1uHxkt+xzt9+R9wnRTZZQpXQ0T5uP1IQxToyOAZiQu5HEpjeA4SWIoksRxNiGC1tRZJ4LNxgHgnU5nJZBDvuDdl8lzQRBsQ+s9PZt7s7Pz8wsL39/DkIfZ4xlB2Gqsq62ta9oxVlVrNZpihFRpGO9fzQw1ms0NDWZz07iGkJmIFH8xxkc3a/WWlubmFkv9AB2SEpDvKxbjidN2faseaNV3zoHXvv7wMODJdkOHAegweAfFPx4G67KluxzottCU9n8CUqXzcIQdXOytAHqXxomvykhEKN9EFutG22p//0rbNvHVxiJywa8yS2KDfV1dfbu31H8jF1RHiTKtWYeHxUvq3bn0pyjCRaiRU6aDO+gb3aEfEeVNsDgm8zzLy9egPa7Qt8TSJdwhjplk06HH43ZNJ3s91KKCHQ5x4sw1fRGYDZ0n1L4FKb9/BP5JLYxToheoFCVxz57PPS8UhhEpLBVeAAAAAElFTkSuQmCC\"}")
+//            .asJson();
+//            r = response.toString();
+//            return r;
+//        } catch (UnirestException e) {
+//               log.error("Error en getDimensionesImagen[1]: " + e.getMessage());
+//               throw new UnirestException("Error en getDimensionesImagen.");
+//        } catch (Exception e) {
+//               log.error("Error en getDimensionesImagen[2]: " + e.getMessage());
+//               throw new Exception("Error en getDimensionesImagen.");
+//         }
+//    }
     //El tipo es 0 latitud y 1 longitud
     //La idea es generar un methodo que conusma algun
     //servivio que provea dicha conversion

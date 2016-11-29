@@ -98,6 +98,7 @@ public class ShipmentResource {
             Long id = Long.valueOf(datos[0]);
             Long idCadete = Long.valueOf(datos[1]);
             Gson gson = new Gson();
+            System.out.println("ID CADDETE: " + datos[1]);
             ShipmentEntity modificado =
                     shipmentBean.asignarCadete(id, idCadete);
             if (modificado == null) {
@@ -185,9 +186,11 @@ public class ShipmentResource {
         id = id.replace("}", "");
         id = id.replace(",", "");
         id = id.trim();
+        System.out.println("ID " + id);
         try {
             boolean confirmado =
                     shipmentBean.confirmarRecepcion(Long.valueOf(id));
+            System.out.println("CONFIRMADO");
             if (!confirmado) {
                 r = Response
                         .status(Response.Status.BAD_REQUEST)
@@ -200,7 +203,7 @@ public class ShipmentResource {
                         .build();
             }
             } catch (Exception e) {
-                System.out.println(e.getMessage());
+                System.out.println("DADADADADADADADADADADADADADADADADADADADA " + e.getMessage());
             }
         return r;
     }

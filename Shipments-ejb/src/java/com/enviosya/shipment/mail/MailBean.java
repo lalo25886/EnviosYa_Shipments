@@ -18,8 +18,6 @@ import javax.mail.internet.MimeMessage;
 public class MailBean {
 
     public void enviarMail(String msg) {
-System.out.println("LALAOAOAOAOAOAOAOAOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-System.out.println("pppppppppppppppppq "+msg);
         String[] datos = msg.split("-");
         String to = datos[0].trim();
         String subject = datos[1].trim();

@@ -31,7 +31,7 @@ public class WayToPayResource {
     @EJB
     private WayToPayBean waytopayBean;
 
-     @Context
+    @Context
     private UriInfo context;
 
     public WayToPayResource() {
@@ -111,5 +111,4 @@ public class WayToPayResource {
         }
         return r;
     }
-    
 }
