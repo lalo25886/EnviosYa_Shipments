@@ -62,9 +62,10 @@ public class ShipmentResource {
                 + "Verifique los datos ingresados.");
 
         try {
-            
+
             ShipmentEntity u = gson.fromJson(body, ShipmentEntity.class);
-            if (!shipmentBean.existeCliente(String.valueOf(u.getIdClienteOrigen()))) {
+            if (!shipmentBean
+                    .existeCliente(String.valueOf(u.getIdClienteOrigen()))) {
                 String sinCli = gson.toJson("Error al agregar un "
                         + "shipment. Cliente emisor no registrado");
                 return Response
@@ -72,7 +73,8 @@ public class ShipmentResource {
                     .entity(sinCli)
                     .build();
             }
-            if (!shipmentBean.existeCliente(String.valueOf(u.getIdClienteDestino()))) {
+            if (!shipmentBean
+                    .existeCliente(String.valueOf(u.getIdClienteDestino()))) {
                 String sinCli = gson.toJson("Error al agregar un "
                         + "shipment. Cliente destino no está registrado");
                 return Response
@@ -84,7 +86,8 @@ public class ShipmentResource {
                 || u.getDestinoLongitud().equalsIgnoreCase(vacio)
                 || u.getOrigenLatitud().equalsIgnoreCase(vacio)
                 || u.getOrigenLongitud().equalsIgnoreCase(vacio)) {
-                String sinUbic = gson.toJson("Error al agregar un shipment. Verifique "
+                String sinUbic = gson.toJson("Error al agregar un shipment. "
+                        + "Verifique "
                         + "los datos de las ubicaciones.");
                 return Response
                     .status(Response.Status.ACCEPTED)
@@ -93,7 +96,8 @@ public class ShipmentResource {
 
             }
             if (u.getImagenPaquete().equalsIgnoreCase(vacio)) {
-                String sinImag = gson.toJson("Error al agregar un shipment. Falta el dato "
+                String sinImag = gson.toJson("Error al agregar un "
+                        + "shipment. Falta el dato "
                         + "de la imagen");
                 return Response
                     .status(Response.Status.ACCEPTED)
@@ -154,7 +158,7 @@ public class ShipmentResource {
         int contador = 0;
         try {
             BufferedReader in = new BufferedReader(new InputStreamReader(data));
-            while ((linea = in.readLine())!=null){
+            while ((linea = in.readLine())!= null){
                 linea = linea.replace("\"id\": \"", "");
                 linea = linea.replace("\"idCadete\": \"", "");
                 linea = linea.replace("\"", "");
@@ -180,7 +184,7 @@ public class ShipmentResource {
             }
             Long id = Long.valueOf(datos[0]);
             Long idCadete = Long.valueOf(datos[1]);
-            
+
             Gson gson = new Gson();
 
             ShipmentEntity modificado =
@@ -249,13 +253,15 @@ public class ShipmentResource {
                     .entity(gson.toJson(res))
                     .build();
         } catch (EntidadNoExisteException | PersistenceException ex) {
-            String res = "[1] Error al eliminar el shipment. Verifique los datos.";
+            String res = "[1] Error al eliminar el shipment. "
+                    + "Verifique los datos.";
             return Response
                     .status(Response.Status.ACCEPTED)
                     .entity(res)
                     .build();
         } catch (Exception ex) {
-            String res = "[2] Error al eliminar el shipment. Verifique los datos.";
+            String res = "[2] Error al eliminar el shipment. "
+                    + "Verifique los datos.";
             return Response
                     .status(Response.Status.ACCEPTED)
                     .entity(res)
@@ -323,7 +329,7 @@ public class ShipmentResource {
     @POST
     @Path("isclient")
     @Consumes(MediaType.APPLICATION_JSON)
-    public boolean esCliente(InputStream input) {
+    public String esCliente(InputStream input) {
         boolean retorno = false;
         String linea = "";
         String vacio = "";
@@ -349,7 +355,7 @@ public class ShipmentResource {
             }
             if (!shipmentBean.isNumeric(datos[0])
                     || !shipmentBean.isNumeric(datos[1])) {
-                return false;
+                return "0";
             }
             Long id = Long.valueOf(datos[0]);
             Long idCliente = Long.valueOf(datos[1]);
@@ -358,17 +364,17 @@ public class ShipmentResource {
             } catch (PersistenceException e) {
                 System.out.println("[1] ERROR en esCliente "
                         + "(Resource) :" + e.getMessage());
-                return false;
+                return "0";
             } catch (EntidadNoExisteException ex) {
                 System.out.println("[2] ERROR en esCliente "
                         + "(Resource) :" + ex.getMessage());
-                return false;
+                return "0";
             } catch (IOException ex) {
                 System.out.println("[3] ERROR en esCliente "
                         + "(Resource) :" + ex.getMessage());
-                return false;
+                return "0";
         }
-        return retorno;
+        if(retorno) { return "1";} else { return "0";}
     }
 
     @GET

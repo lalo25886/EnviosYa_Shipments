@@ -192,6 +192,7 @@ public class ShipmentBean {
                 mailBean.enviarMail(mensajeNuevo);
                 log.info("Envio realizado:" + unEnvio.toString());
             }
+            session.close();
         } catch (JMSException ex) {
             log.error("ERROR: Ha ocurrido un error al enviar "
                     + "un mensaje en la creación de "
@@ -437,7 +438,7 @@ public class ShipmentBean {
                         getClienteNotificar(amodificar.getIdClienteOrigen());
                 String destinatarioNotif =
                         getClienteNotificar(amodificar.getIdClienteDestino());
-                if( remitenteNotif.equalsIgnoreCase("")
+                if ( remitenteNotif.equalsIgnoreCase("")
                     || destinatarioNotif.equalsIgnoreCase("")
                     || remitenteNotif.equalsIgnoreCase("-5")
                     || destinatarioNotif.equalsIgnoreCase("-5")) {
