@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
+import javax.persistence.PersistenceException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -65,7 +66,15 @@ public class ShipmentResource {
             ShipmentEntity u = gson.fromJson(body, ShipmentEntity.class);
             if (!shipmentBean.existeCliente(String.valueOf(u.getIdClienteOrigen()))) {
                 String sinCli = gson.toJson("Error al agregar un "
-                        + "shipment. Cliente no registrado");
+                        + "shipment. Cliente emisor no registrado");
+                return Response
+                    .status(Response.Status.ACCEPTED)
+                    .entity(sinCli)
+                    .build();
+            }
+            if (!shipmentBean.existeCliente(String.valueOf(u.getIdClienteDestino()))) {
+                String sinCli = gson.toJson("Error al agregar un "
+                        + "shipment. Cliente destino no está registrado");
                 return Response
                     .status(Response.Status.ACCEPTED)
                     .entity(sinCli)
@@ -171,6 +180,7 @@ public class ShipmentResource {
             }
             Long id = Long.valueOf(datos[0]);
             Long idCadete = Long.valueOf(datos[1]);
+            
             Gson gson = new Gson();
 
             ShipmentEntity modificado =
@@ -203,20 +213,23 @@ public class ShipmentResource {
     @POST
     @Path("update")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response modificar(String body) throws EntidadNoExisteException {
+    public Response modificar(String body)  {
         Gson gson = new Gson();
         ShipmentEntity u = gson.fromJson(body, ShipmentEntity.class);
         Response r;
-        ShipmentEntity modificado = shipmentBean.modificar(u);
-        if (modificado == null) {
-            r = Response
-                    .status(Response.Status.BAD_REQUEST)
-                    .entity("Shipment")
-                    .build();
-        } else {
+        ShipmentEntity modificado;
+        try {
+            modificado = shipmentBean.modificar(u);
             r = Response
                     .status(Response.Status.CREATED)
                     .entity(gson.toJson(modificado))
+                    .build();
+        } catch (EntidadNoExisteException | PersistenceException ex) {
+            String res = "Error al modificar el "
+                    + "shipment. Verifique los datos.";
+            return Response
+                    .status(Response.Status.ACCEPTED)
+                    .entity(res)
                     .build();
         }
         return r;
@@ -225,25 +238,30 @@ public class ShipmentResource {
     @POST
     @Path("delete")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response eliminar(String body) throws Exception {
+    public Response eliminar(String body) {
         Gson gson = new Gson();
         ShipmentEntity u = gson.fromJson(body, ShipmentEntity.class);
-        Response r;
-        Boolean modificado = shipmentBean.eliminar(u);
-        if (!modificado) {
-            r = Response
-                    .status(Response.Status.BAD_REQUEST)
-                    .entity("Shipment")
+        try {
+            boolean eliminado = shipmentBean.eliminar(u);
+            String res = "Se ha eliminado correctamente el shipment.";
+            return Response
+                    .status(Response.Status.ACCEPTED)
+                    .entity(gson.toJson(res))
                     .build();
-        } else {
-            r = Response
-                    .status(Response.Status.CREATED)
-                    .entity(gson.toJson(modificado))
+        } catch (EntidadNoExisteException | PersistenceException ex) {
+            String res = "[1] Error al eliminar el shipment. Verifique los datos.";
+            return Response
+                    .status(Response.Status.ACCEPTED)
+                    .entity(res)
+                    .build();
+        } catch (Exception ex) {
+            String res = "[2] Error al eliminar el shipment. Verifique los datos.";
+            return Response
+                    .status(Response.Status.ACCEPTED)
+                    .entity(res)
                     .build();
         }
-        return r;
     }
-
 //  @GET
 //  @Path("/envioCliente/{id}")
 //  @Consumes(MediaType.TEXT_HTML)
@@ -270,30 +288,34 @@ public class ShipmentResource {
         id = id.trim();
 
         try {
-            if (!shipmentBean.isNumeric(id)){
+            if (!shipmentBean.isNumeric(id)) {
                 String error = "Error al confirmar, el dato "
                         + "ingresado debe ser un valor numérico.";
                 return Response
-                        .status(Response.Status.BAD_REQUEST)
+                        .status(Response.Status.ACCEPTED)
                         .entity(error)
                         .build();
             }
             boolean confirmado =
                     shipmentBean.confirmarRecepcion(Long.valueOf(id));
-            System.out.println("CONFIRMADO");
             if (!confirmado) {
+                String ret = "[1] Error al confirmar la recepción del envío.";
                 r = Response
-                        .status(Response.Status.BAD_REQUEST)
-                        .entity("Error al confirmar.")
+                        .status(Response.Status.ACCEPTED)
+                        .entity(ret)
                         .build();
             } else {
                 r = Response
                         .status(Response.Status.CREATED)
-                        .entity("Confirmación exitosa.")
+                        .entity("Se ha confirmado exitosamente el envío.")
                         .build();
             }
-            } catch (Exception e) {
-                System.out.println("DADADADADADADADADADADADADADADADADADADADA " + e.getMessage());
+            } catch (DatoErroneoException e) {
+                String ret = "[2] Error al confirmar la recepción del envío.";
+                r = Response
+                        .status(Response.Status.ACCEPTED)
+                        .entity(ret)
+                        .build();
             }
         return r;
     }
@@ -301,7 +323,7 @@ public class ShipmentResource {
     @POST
     @Path("isclient")
     @Consumes(MediaType.APPLICATION_JSON)
-    public boolean esCliente(InputStream input) throws IOException{
+    public boolean esCliente(InputStream input) {
         boolean retorno = false;
         String linea = "";
         String vacio = "";
@@ -325,32 +347,58 @@ public class ShipmentResource {
                     contador++;
                 }
             }
+            if (!shipmentBean.isNumeric(datos[0])
+                    || !shipmentBean.isNumeric(datos[1])) {
+                return false;
+            }
             Long id = Long.valueOf(datos[0]);
             Long idCliente = Long.valueOf(datos[1]);
             retorno = shipmentBean.esCliente(id, idCliente);
 
-            } catch (Exception e) {
-                System.out.println("ERROR en esCliente "
+            } catch (PersistenceException e) {
+                System.out.println("[1] ERROR en esCliente "
                         + "(Resource) :" + e.getMessage());
-            }
+                return false;
+            } catch (EntidadNoExisteException ex) {
+                System.out.println("[2] ERROR en esCliente "
+                        + "(Resource) :" + ex.getMessage());
+                return false;
+            } catch (IOException ex) {
+                System.out.println("[3] ERROR en esCliente "
+                        + "(Resource) :" + ex.getMessage());
+                return false;
+        }
         return retorno;
     }
 
-     @GET
+    @GET
     @Path("getShipment/{id}")
     @Consumes(MediaType.TEXT_HTML)
-    public ShipmentEntity getClienteNotificar(@PathParam("id") String id)
-            throws EntidadNoExisteException {
+    public ShipmentEntity getCadeteNotificar(@PathParam("id") String id) {
+        ShipmentEntity shipment = null;
+        String error = "-5";
         ShipmentEntity unS = new ShipmentEntity();
         unS.setId(Long.parseLong(id));
+        if (!shipmentBean.isNumeric(id)) {
+                return shipment;
+            }
         String cadete = "";
         try {
-            ShipmentEntity shipment = shipmentBean.obtenerShipment(unS.getId());
+            shipment = shipmentBean.obtenerShipment(unS.getId());
             Gson gson = new Gson();
-            cadete = gson.toJson(shipmentBean.getCadeteNotificarEntidad(shipment.getIdCadete()));
+            cadete = gson.toJson(shipmentBean
+                    .getCadeteNotificarEntidad(shipment.getIdCadete()));
+
+            if (cadete.equalsIgnoreCase(error)) {
+                return null;
+            }
             return shipment;
-        } catch (Exception e) {
-            throw new EntidadNoExisteException("Error en getClienteNotificar.");
+        } catch (EntidadNoExisteException e) {
+                return null;
+        } catch (DatoErroneoException ex) {
+            return null;
+        } catch (IOException ex) {
+            return null;
         }
     }
 }

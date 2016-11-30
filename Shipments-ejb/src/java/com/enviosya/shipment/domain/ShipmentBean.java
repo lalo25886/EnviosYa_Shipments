@@ -57,10 +57,10 @@ public class ShipmentBean {
     private ConnectionFactory connectionFactory;
     @Resource(lookup = "jms/QueueCadete")
     private Queue queueCadete;
-    @Resource(lookup = "jms/QueueEmisor")
-    private Queue queueEmisor;
-    @Resource(lookup = "jms/QueueReceptor")
-    private Queue queueReceptor;
+//    @Resource(lookup = "jms/QueueEmisor")
+//    private Queue queueEmisor;
+//    @Resource(lookup = "jms/QueueReceptor")
+//    private Queue queueReceptor;
     @PersistenceContext
     private EntityManager em;
     @PostConstruct
@@ -72,7 +72,7 @@ public class ShipmentBean {
     public ShipmentEntity agregar(ShipmentEntity unShipmentEntity)
             throws DatoErroneoException {
         try {
-            
+
             em.persist(unShipmentEntity);
             return unShipmentEntity;
         } catch (EJBException | PersistenceException  e) {
@@ -100,7 +100,7 @@ public class ShipmentBean {
         try {
             em.merge(unEnvioEntity);
             return unEnvioEntity;
-        } catch (Exception e) {
+        } catch (PersistenceException e) {
             log.error("Error en modificar Shipment Entity: " + e.getMessage());
             throw new EntidadNoExisteException("Error al modificar un shipment."
                     + " El shipment con el id: " + unEnvioEntity.getId() + " "
@@ -114,12 +114,15 @@ public class ShipmentBean {
             ShipmentEntity amodificar = em.find(ShipmentEntity.class, id);
             amodificar.setIdCadete(idCad);
             em.merge(amodificar);
-            //Gson gson = new Gson();
-            //gson.toJson(amodificar);
             enviarCreacionEnvio(amodificar);
             return amodificar;
-        } catch (Exception e) {
+        } catch (PersistenceException e) {
             log.error("Error al asginar un cadete: " + e.getMessage());
+            throw new EntidadNoExisteException("Error al asignar un cadete."
+                    + " El shipment con el id: " + id + " "
+                    + "no se encuentra.");
+        } catch (Exception ex) {
+            log.error("Error al asginar un cadete: " + ex.getMessage());
             throw new EntidadNoExisteException("Error al asignar un cadete."
                     + " El shipment con el id: " + id + " "
                     + "no se encuentra.");
@@ -133,7 +136,7 @@ public class ShipmentBean {
             Connection connection = connectionFactory.createConnection();
             Session session = connection.createSession()) {
             String dimension = getDimensionesImagen(unEnvio.getImagenPaquete());
-            
+
             if (dimension.equalsIgnoreCase("-1")) {
                 throw new Exception("Error al obtener las dimensiones de "
                         + "la imagen");
@@ -381,7 +384,7 @@ public class ShipmentBean {
             String length = "";
             String height = "";
             String weight = "";
-            
+
             if (response.getBody().getObject() != null) {
                 length = response.getBody().getObject()
                         .get("length").toString();
@@ -392,9 +395,9 @@ public class ShipmentBean {
                 r = length + "*" + height + "*" + weight;
                 Unirest.shutdown();
                 return r;
-            }else {
+            } else {
                 return "-1";
-            } 
+            }
         } catch (UnirestException e) {
                log.error("Error en getDimensionesImagen[1]: " + e.getMessage());
                throw new UnirestException("Error en getDimensionesImagen.");
@@ -429,44 +432,55 @@ public class ShipmentBean {
                 retorno = true;
                 String cadeteNotif =
                         getCadeteNotificar(amodificar.getIdCadete());
+
                 String remitenteNotif =
                         getClienteNotificar(amodificar.getIdClienteOrigen());
                 String destinatarioNotif =
                         getClienteNotificar(amodificar.getIdClienteDestino());
-                String mensajeEmisor = remitenteNotif
-                    + " - Confirmación de envío - "
-                    + "Estimado cliente "
-                    + amodificar.getIdClienteOrigen().toString()
-                    + ", tenemos el agrado de informarle que el envío número "
-                    + amodificar.getId().toString()
-                    + " fue recepcionado exitosamente. "
-                    + "El cadete que realizó el envío es el número "
-                    + amodificar.getIdCadete() + " y su correo electrónico es "
-                    + cadeteNotif + ". "
-                    + "Acceder al link para calificar el servicio y al cadete "
-                    + "https://www.google.com.uy "
-                    + "EnviosYa! le agradece por su preferencia.";
-                mailBean.enviarMail(mensajeEmisor);
-                log.info("Confirmación de envío (origen):" + remitenteNotif);
+                if( remitenteNotif.equalsIgnoreCase("")
+                    || destinatarioNotif.equalsIgnoreCase("")
+                    || remitenteNotif.equalsIgnoreCase("-5")
+                    || destinatarioNotif.equalsIgnoreCase("-5")) {
+                    amodificar.setConfirmado(0);
+                    em.merge(amodificar);
+                    em.flush();
+                    return false;
+                } else {
+                    String mensajeEmisor = remitenteNotif
+                        + " - Confirmación de envío - "
+                        + "Estimado cliente "
+                        + amodificar.getIdClienteOrigen().toString()
+                        + ", tenemos el agrado de informarle que el envío número "
+                        + amodificar.getId().toString()
+                        + " fue recepcionado exitosamente. "
+                        + "El cadete que realizó el envío es el número "
+                        + amodificar.getIdCadete() + " y su correo electrónico es "
+                        + cadeteNotif + ". "
+                        + "Acceder al link para calificar el servicio y al cadete "
+                        + "https://www.google.com.uy "
+                        + "EnviosYa! le agradece por su preferencia.";
+                    mailBean.enviarMail(mensajeEmisor);
+                    log.info("Confirmación de envío (origen):" + remitenteNotif);
 
-                String mensajeDestinatario = destinatarioNotif
-                    + " - Confirmación de envío - "
-                    + "Estimado cliente "
-                    + amodificar.getIdClienteDestino().toString()
-                    + ", tenemos el agrado de informarle que el envío número "
-                    + amodificar.getId().toString()
-                    + " fue recepcionado exitosamente. "
-                    + "El cadete que realizó el envío es el número "
-                    + amodificar.getIdCadete() + " y su correo electrónico es "
-                    + cadeteNotif + ". "
-                    + "Acceder al link para calificar el servicio y al cadete "
-                    + "https://www.google.com.uy "
-                    + "EnviosYa! le agradece por su preferencia.";
+                    String mensajeDestinatario = destinatarioNotif
+                        + " - Confirmación de envío - "
+                        + "Estimado cliente "
+                        + amodificar.getIdClienteDestino().toString()
+                        + ", tenemos el agrado de informarle que el envío número "
+                        + amodificar.getId().toString()
+                        + " fue recepcionado exitosamente. "
+                        + "El cadete que realizó el envío es el número "
+                        + amodificar.getIdCadete() + " y su correo electrónico es "
+                        + cadeteNotif + ". "
+                        + "Acceder al link para calificar el servicio y al cadete "
+                        + "https://www.google.com.uy "
+                        + "EnviosYa! le agradece por su preferencia.";
 
-                mailBean.enviarMail(mensajeDestinatario);
-                log.info("Confirmación de envío (destino):" + remitenteNotif);
+                    mailBean.enviarMail(mensajeDestinatario);
+                    log.info("Confirmación de envío (destino):" + remitenteNotif);
+                }
             }
-        } catch (Exception e) {
+        } catch (PersistenceException | IOException | DatoErroneoException e) {
              log.error("Error en confirmarRecepcion: " + e.getMessage());
             throw new DatoErroneoException("Error en confirmarRecepcion."
                     + "" + e.getMessage());
