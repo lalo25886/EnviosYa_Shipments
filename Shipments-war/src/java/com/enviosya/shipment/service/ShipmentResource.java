@@ -7,6 +7,7 @@ import com.enviosya.shipment.exception.DatoErroneoException;
 import com.enviosya.shipment.exception.EntidadNoExisteException;
 import com.enviosya.shipment.persistence.ShipmentEntity;
 import com.google.gson.Gson;
+import com.google.gson.stream.MalformedJsonException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,6 +19,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
@@ -51,20 +53,27 @@ public class ShipmentResource {
     @POST
     @Path("add")
     @Consumes(MediaType.APPLICATION_JSON)
-    public String agregar(String body)
-            throws DatoErroneoException, MalformedURLException, IOException {
-        Gson gson = new Gson();
-        ShipmentEntity u = gson.fromJson(body, ShipmentEntity.class);
+    public String agregar(String body) {
         String r;
-        ShipmentEntity creado = shipmentBean.agregar(u);
-        if (creado == null) {
-            r = Response
-                    .status(Response.Status.BAD_REQUEST)
-                    .entity("Shipment")
-                    .build().toString();
-        } else {
-            r = shipmentBean.getCadetesCercanos(u.getOrigenLatitud(),
+        String respuesta = "Error al agregar un shipment";
+        try {
+             Gson gson = new Gson();
+            ShipmentEntity u = gson.fromJson(body, ShipmentEntity.class);
+            ShipmentEntity creado = shipmentBean.agregar(u);
+            if (creado != null) {
+                r = shipmentBean.getCadetesCercanos(u.getOrigenLatitud(),
                                                 u.getOrigenLongitud());
+            } else {
+                return Response
+                    .status(Response.Status.ACCEPTED)
+                    .entity(respuesta)
+                    .build().toString();
+            }
+        } catch (DatoErroneoException | IOException  e) {
+            r = Response
+                    .status(Response.Status.ACCEPTED)
+                    .entity(respuesta)
+                    .build().toString();
         }
         return r;
     }
@@ -117,7 +126,7 @@ public class ShipmentResource {
             }
         return r;
     }
-
+//Response.status(Response.Status.ACCEPTED).entity(ret).build();
     @POST
     @Path("update")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -244,6 +253,24 @@ public class ShipmentResource {
                         + "(Resource) :" + e.getMessage());
             }
         return retorno;
+    }
+
+     @GET
+    @Path("getShipment/{id}")
+    @Consumes(MediaType.TEXT_HTML)
+    public ShipmentEntity getClienteNotificar(@PathParam("id") String id)
+            throws EntidadNoExisteException {
+        ShipmentEntity unS = new ShipmentEntity();
+        unS.setId(Long.parseLong(id));
+        String cadete = "";
+        try {
+            ShipmentEntity shipment = shipmentBean.obtenerShipment(unS.getId());
+            Gson gson = new Gson();
+            cadete = gson.toJson(shipmentBean.getCadeteNotificarEntidad(shipment.getIdCadete()));
+            return shipment;
+        } catch (Exception e) {
+            throw new EntidadNoExisteException("Error en getClienteNotificar.");
+        }
     }
 }
 

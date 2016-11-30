@@ -20,11 +20,13 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.sql.SQLDataException;
 import java.sql.SQLException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.List;
 import java.util.Objects;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.ejb.EJB;
+import javax.ejb.EJBException;
 import javax.ejb.Stateless;
 import javax.ejb.LocalBean;
 import javax.jms.Connection;
@@ -36,6 +38,7 @@ import javax.jms.Queue;
 import javax.jms.Session;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.persistence.PersistenceException;
 import javax.xml.crypto.URIReferenceException;
 import org.apache.log4j.Logger;
 
@@ -76,7 +79,7 @@ public class ShipmentBean {
         try {
             em.persist(unShipmentEntity);
             return unShipmentEntity;
-        } catch (Exception e) {
+        } catch (EJBException | PersistenceException  e) {
             log.error("Error en eliminar Shipment Entity: " + e.getMessage());
             throw new DatoErroneoException("Error al agregar un shipment. "
                     + "Verifique los datos ingresados.");
@@ -89,7 +92,7 @@ public class ShipmentBean {
             ShipmentEntity unEnvio = gson.fromJson(body, ShipmentEntity.class);
             em.persist(unEnvio);
             return unEnvio;
-        } catch (Exception e) {
+        } catch (EJBException | PersistenceException  e) {
             log.error("Error en agregrar Shipment Entity: " + e.getMessage());
             throw new DatoErroneoException("Error al agregar un shipment. "
                     + "Verifique los datos ingresados.");
@@ -115,7 +118,7 @@ public class ShipmentBean {
             ShipmentEntity amodificar = em.find(ShipmentEntity.class, id);
             amodificar.setIdCadete(idCad);
             em.merge(amodificar);
-            Gson gson = new Gson();
+            //Gson gson = new Gson();
             //gson.toJson(amodificar);
             enviarCreacionEnvio(amodificar);
             return amodificar;
@@ -133,59 +136,62 @@ public class ShipmentBean {
         try (
             Connection connection = connectionFactory.createConnection();
             Session session = connection.createSession()) {
+            String dimension = getDimensionesImagen(unEnvio.getImagenPaquete());
+            if (dimension.equalsIgnoreCase("-1")){
+                throw new Exception("Error al obtener las dimensiones de "
+                        + "la imagen");
+            } else {
+                double dato1 = 2;
+                double dato2 = 2;
+                double dato3 = 2;
 
-            //Acá consulto el servicio provisto por
-            //Mathias para luego calcular
-            //el costo del envío
-            //String dimension = getDimensionesImagen("");
-            double dato1 = 2;
-            double dato2 = 2;
-            double dato3 = 2;
+                double costo = calculate.calcularCosto(dato1, dato2, dato3);
 
-            double costo = calculate.calcularCosto(dato1, dato2, dato3);
+                String dirOrigen =
+                        convertirUbicacion(unEnvio.getOrigenLatitud(),
+                                           unEnvio.getOrigenLongitud(),
+                                           0);
+                String dirDestino =
+                        convertirUbicacion(unEnvio.getDestinoLatitud(),
+                                           unEnvio.getDestinoLongitud(),
+                                           1);
 
-            String dirOrigen =
-                    convertirUbicacion(unEnvio.getOrigenLatitud(),
-                                       unEnvio.getOrigenLongitud(),
-                                       0);
-            String dirDestino =
-                    convertirUbicacion(unEnvio.getDestinoLatitud(),
-                                       unEnvio.getDestinoLongitud(),
-                                       1);
+                MessageProducer productorDeMensajeCadete =
+                        session.createProducer(queueCadete);
+    //            MessageProducer productorDeMensajeEmisor =
+    //                    session.createProducer(queueEmisor);
 
-            MessageProducer productorDeMensajeCadete =
-                    session.createProducer(queueCadete);
-//            MessageProducer productorDeMensajeEmisor =
-//                    session.createProducer(queueEmisor);
-
-//            MessageProducer productorDeMensajeReceptor =
-//                    session.createProducer(queueReceptor);
-            String cadeteNotif = getCadeteNotificar(unEnvio.getIdCadete());
-            Message mensaje =
-            session.createTextMessage(cadeteNotif + " - Nuevo envío - "
-                    + "Estimado cadete "
-                    + unEnvio.getIdCadete().toString()
-                    + ", usted tiene el "
-                    + "envio número : "
-                    + unEnvio.getId() + " pendiente. "
-                    + "El costo del envío es: $"
-                    + String.valueOf(costo) + ". "
-                    + "La dirección de origen es: " + dirOrigen
-                    + " y la dirección de destino es: " + dirDestino + ".");
-            productorDeMensajeCadete.send(mensaje);
-            String mensajeNuevo = cadeteNotif + " - Nuevo envío - "
-                    + "Estimado cadete "
-                    + unEnvio.getIdCadete().toString()
-                    + ", usted tiene el "
-                    + "envio número : "
-                    + unEnvio.getId() + " pendiente. "
-                    + "El costo del envío es: $"
-                    + String.valueOf(costo) + ". "
-                    + "La dirección de origen es: " + dirOrigen
-                    + " y la dirección de destino es: " + dirDestino + "."
-                    + "";
-            mailBean.enviarMail(mensajeNuevo);
-            log.info("Envio realizado:" + unEnvio.toString());
+    //            MessageProducer productorDeMensajeReceptor =
+    //                    session.createProducer(queueReceptor);
+                String cadeteNotif = getCadeteNotificar(unEnvio.getIdCadete());
+                Message mensaje =
+                session.createTextMessage(cadeteNotif + " - Nuevo envío - "
+                        + "Estimado cadete "
+                        + unEnvio.getIdCadete().toString()
+                        + ", usted tiene el "
+                        + "envio número : "
+                        + unEnvio.getId() + " pendiente. "
+                        + "El costo del envío es: $"
+                        + String.valueOf(costo) + ". "
+                        + "La dirección de origen es: " + dirOrigen
+                        + " y la dirección de destino es: " + dirDestino + ".");
+                productorDeMensajeCadete.send(mensaje);
+                String mensajeNuevo = cadeteNotif + " - Nuevo envío - "
+                        + "Estimado cadete "
+                        + unEnvio.getIdCadete().toString()
+                        + ", usted tiene el "
+                        + "envio número : "
+                        + unEnvio.getId() + " pendiente. "
+                        + "El costo del envío es: $"
+                        + String.valueOf(costo) + ". "
+                        + "La dirección de origen es: " + dirOrigen
+                        + " y la dirección de destino es: " + dirDestino + "."
+                        + "";
+                mailBean.enviarMail(mensajeNuevo);
+                log.info("Envio realizado:" + unEnvio.toString());
+            }
+            
+            
         } catch (JMSException ex) {
             log.error("ERROR: Ha ocurrido un error al enviar "
                     + "un mensaje en la creación de "
@@ -331,19 +337,20 @@ public class ShipmentBean {
                        + " " + e.getMessage());
          }
     }
-    public String getDimensionesImagen(String dato) throws RuntimeException {
-        String link = "https://mathifonseca-ort-arqsoft-sizer-v1."
-                    + "p.mashape.com/dimensions";
-        System.out.println("GET DIMENSIONES 1");
-        System.out.println(link);
-        try {
-		URL url = new URL(link);
-		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-		conn.setDoOutput(true);
-		conn.setRequestMethod("POST");
-		conn.setRequestProperty("Content-Type", "application/json");
 
-		String input = "{\"image\":\"data:image/png;base64,iVBORw0KGgoA"
+    public String getDimensionesImagen(String dato) throws UnirestException,
+             Exception {
+        String r = "";
+        String link = "";
+	try {
+            link = "https://mathifonseca-ort-arqsoft-sizer-v1."
+                    + "p.mashape.com/dimensions";
+            HttpResponse<JsonNode> response =  Unirest.post(link)
+            .header("X-Mashape-Key",
+                    "eTrCJvP4D6mshPu4UGwWBw8p5mdwp16MJUIjsn60S9YjmloF4h")
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .body("{\"image\":\"data:image/png;base64,iVBORw0KGgoA"
                         + "AAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAB+FBMVEUAAAA/mUP"
                         + "idDHiLi5Cn0XkNTPmeUrkdUg/m0Q0pEfcpSbwaVdKskg+lUP4"
                         + "zA/iLi3msSHkOjVAmETdJSjtYFE/lkPnRj3sWUs8kkLeqCVIq"
@@ -373,67 +380,31 @@ public class ShipmentBean {
                         + "RHiTKtWYeHxUvq3bn0pyjCRaiRU6aDO+gb3aEfEeVNsDgm8zz"
                         + "Ly9egPa7Qt8TSJdwhjplk06HH43ZNJ3s91KKCHQ5x4sw1fRGY"
                         + "DZ0n1L4FKb9/BP5JLYxToheoFCVxz57PPS8UhhEpLBVeAAAAA"
-                        + "ElFTkSuQmCC\"}";
-
-		OutputStream os = conn.getOutputStream();
-		os.write(input.getBytes());
-		os.flush();
-                System.out.println("GET DIMENSIONES 2");
-                //Acá se rompe
-		if (conn.getResponseCode() != HttpURLConnection.HTTP_CREATED) {
-			throw new RuntimeException("Failed : HTTP error code : "
-				+ conn.getResponseCode());
-		}
-                System.out.println("GET DIMENSIONES 3");
-		BufferedReader br = new BufferedReader(new InputStreamReader(
-				(conn.getInputStream())));
-                System.out.println("GET DIMENSIONES 4");
-		String output;
-		System.out.println("Output from Server .... \n");
-		while ((output = br.readLine()) != null) {
-			System.out.println("LALO: " + output);
-		}
-
-		conn.disconnect();
-
-	  } catch (MalformedURLException e) {
-
-		e.printStackTrace();
-
-	  } catch (IOException e) {
-
-		e.printStackTrace();
-
-	 }
-        return "";
-	}
-    
-    
-//    public String getDimensionesImagen(String dato) throws UnirestException,
-//             Exception {
-//        String r = "";
-//        String link = "";
-//	try {
-//            link = "https://mathifonseca-ort-arqsoft-sizer-v1."
-//                    + "p.mashape.com/dimensions";
-//            HttpResponse<JsonNode> response = Unirest.post(link)
-//            .header("X-Mashape-Key",
-//                    "eTrCJvP4D6mshPu4UGwWBw8p5mdwp16MJUIjsn60S9YjmloF4h")
-//            .header("Content-Type", "application/json")
-//            .header("Accept", "application/json")
-//            //.body("{\"image\":\"data:image/"+dato+"\"}")
-//            .body("{\"image\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAB+FBMVEUAAAA/mUPidDHiLi5Cn0XkNTPmeUrkdUg/m0Q0pEfcpSbwaVdKskg+lUP4zA/iLi3msSHkOjVAmETdJSjtYFE/lkPnRj3sWUs8kkLeqCVIq0fxvhXqUkbVmSjwa1n1yBLepyX1xxP0xRXqUkboST9KukpHpUbuvRrzrhF/ljbwaljuZFM4jELaoSdLtElJrUj1xxP6zwzfqSU4i0HYnydMtUlIqUfywxb60AxZqEXaoifgMCXptR9MtklHpEY2iUHWnSjvvRr70QujkC+pUC/90glMuEnlOjVMt0j70QriLS1LtEnnRj3qUUXfIidOjsxAhcZFo0bjNDH0xxNLr0dIrUdmntVTkMoyfL8jcLBRuErhJyrgKyb4zA/5zg3tYFBBmUTmQTnhMinruBzvvhnxwxZ/st+Ktt5zp9hqota2vtK6y9FemNBblc9HiMiTtMbFtsM6gcPV2r6dwroseLrMrbQrdLGdyKoobKbo3Zh+ynrgVllZulTsXE3rV0pIqUf42UVUo0JyjEHoS0HmsiHRGR/lmRz/1hjqnxjvpRWfwtOhusaz0LRGf7FEfbDVmqHXlJeW0pbXq5bec3fX0nTnzmuJuWvhoFFhm0FtrziBsjaAaDCYWC+uSi6jQS3FsSfLJiTirCOkuCG1KiG+wSC+GBvgyhTszQ64Z77KAAAARXRSTlMAIQRDLyUgCwsE6ebm5ubg2dLR0byXl4FDQzU1NDEuLSUgC+vr6urq6ubb29vb2tra2tG8vLu7u7uXl5eXgYGBgYGBLiUALabIAAABsElEQVQoz12S9VPjQBxHt8VaOA6HE+AOzv1wd7pJk5I2adpCC7RUcHd3d3fXf5PvLkxheD++z+yb7GSRlwD/+Hj/APQCZWxM5M+goF+RMbHK594v+tPoiN1uHxkt+xzt9+R9wnRTZZQpXQ0T5uP1IQxToyOAZiQu5HEpjeA4SWIoksRxNiGC1tRZJ4LNxgHgnU5nJZBDvuDdl8lzQRBsQ+s9PZt7s7Pz8wsL39/DkIfZ4xlB2Gqsq62ta9oxVlVrNZpihFRpGO9fzQw1ms0NDWZz07iGkJmIFH8xxkc3a/WWlubmFkv9AB2SEpDvKxbjidN2faseaNV3zoHXvv7wMODJdkOHAegweAfFPx4G67KluxzottCU9n8CUqXzcIQdXOytAHqXxomvykhEKN9EFutG22p//0rbNvHVxiJywa8yS2KDfV1dfbu31H8jF1RHiTKtWYeHxUvq3bn0pyjCRaiRU6aDO+gb3aEfEeVNsDgm8zzLy9egPa7Qt8TSJdwhjplk06HH43ZNJ3s91KKCHQ5x4sw1fRGYDZ0n1L4FKb9/BP5JLYxToheoFCVxz57PPS8UhhEpLBVeAAAAAElFTkSuQmCC\"}")
-//            .asJson();
-//            r = response.toString();
-//            return r;
-//        } catch (UnirestException e) {
-//               log.error("Error en getDimensionesImagen[1]: " + e.getMessage());
-//               throw new UnirestException("Error en getDimensionesImagen.");
-//        } catch (Exception e) {
-//               log.error("Error en getDimensionesImagen[2]: " + e.getMessage());
-//               throw new Exception("Error en getDimensionesImagen.");
-//         }
-//    }
+                        + "ElFTkSuQmCC\"}")
+            .asJson();
+            String length = "";
+            String height = "";
+            String weight = "";
+            if (response.getBody().getObject() != null) {
+                length = response.getBody().getObject()
+                        .get("length").toString();
+                height = response.getBody().getObject()
+                        .get("height").toString();
+                weight = response.getBody().getObject()
+                        .get("weight").toString();
+                r = length + "*" + height + "*" + weight;
+                return r;
+            }else {
+                return "-1";
+            } 
+        } catch (UnirestException e) {
+               log.error("Error en getDimensionesImagen[1]: " + e.getMessage());
+               throw new UnirestException("Error en getDimensionesImagen.");
+        } catch (Exception e) {
+               log.error("Error en getDimensionesImagen[2]: " + e.getMessage());
+               throw new Exception("Error en getDimensionesImagen.");
+         }
+    }
     //El tipo es 0 latitud y 1 longitud
     //La idea es generar un methodo que conusma algun
     //servivio que provea dicha conversion
@@ -559,4 +530,105 @@ public class ShipmentBean {
         }
         return retorno;
     }
+
+    public ShipmentEntity obtenerShipment(Long id) throws EntidadNoExisteException {
+        ShipmentEntity unS = null;
+        try {
+            unS = em.find(ShipmentEntity.class, id);
+            String cadete = getCadeteNotificarEntidad(unS.getIdCadete());
+            
+        } catch (Exception e) {
+            log.error("Error al obtenerShipment: " + e.getMessage());
+            throw new EntidadNoExisteException("Error en obtenerShipment. "
+                    + "El shipment con el id: " + id + " no "
+                    + "se encuentra.");
+        }
+        return unS;
+    }
+
+     public String getCadeteNotificarEntidad(Long idCadete)
+            throws DatoErroneoException, MalformedURLException, IOException {
+        String r = "";
+        String link = "";
+	try {
+            link = "http://localhost:8080/Cadets-war/"
+                    + "cadet/getCadetEntity/" + idCadete.toString();
+            URL url = new URL(link);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
+
+            if (conn.getResponseCode() != 200) {
+                    throw new RuntimeException("Failed : HTTP error code : "
+                                    + conn.getResponseCode());
+            }
+            BufferedReader br = new BufferedReader(new InputStreamReader(
+                    (conn.getInputStream())));
+            String output = "";
+            while ((output = br.readLine()) != null) {
+                    r += output;
+            }
+            System.out.println("DATOS DEL CADETE : " + r);
+            conn.disconnect();
+            return r;
+        } catch (MalformedURLException e) {
+               log.error("Error en getCadeteNotificarEntidad[1]:"
+                       + " " + e.getMessage());
+               throw new MalformedURLException("Error en la URL: " + link);
+         } catch (IOException e) {
+               log.error("Error en getCadeteNotificarEntidad[2]:"
+                       + " " + e.getMessage());
+               throw new IOException("Error en getCadeteNotificarEntidad.");
+         } catch (Exception e) {
+               log.error("Error en getCadeteNotificarEntidad[3]: "
+                       + "" + e.getMessage());
+               throw new DatoErroneoException("Error en "
+                       + "getCadeteNotificarEntidad[3]."
+                       + " " + e.getMessage());
+         }
+    }
+
+     public String getReviewCadete(Long idEnvio, Long idCadete)
+            throws DatoErroneoException, MalformedURLException, IOException {
+        String r = "";
+        String link = "";
+	try {
+
+            link = "http://localhost:8080/Reviews-war/"
+                    + "review/getListReviews/" + idCadete.toString();
+            URL url = new URL(link);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
+
+            if (conn.getResponseCode() != 200) {
+                    throw new RuntimeException("Failed : HTTP error code : "
+                                    + conn.getResponseCode());
+            }
+            BufferedReader br = new BufferedReader(new InputStreamReader(
+                    (conn.getInputStream())));
+            String output = "";
+            while ((output = br.readLine()) != null) {
+                    r += output;
+            }
+            System.out.println("LISTA DE REVIEW : " + r);
+            conn.disconnect();
+            return r;
+        } catch (MalformedURLException e) {
+               log.error("Error en getCadeteNotificarEntidad[1]:"
+                       + " " + e.getMessage());
+               throw new MalformedURLException("Error en la URL: " + link);
+         } catch (IOException e) {
+               log.error("Error en getCadeteNotificarEntidad[2]:"
+                       + " " + e.getMessage());
+               throw new IOException("Error en getCadeteNotificarEntidad.");
+         } catch (Exception e) {
+               log.error("Error en getCadeteNotificarEntidad[3]: "
+                       + "" + e.getMessage());
+               throw new DatoErroneoException("Error en "
+                       + "getCadeteNotificarEntidad[3]."
+                       + " " + e.getMessage());
+         }
+    }
+//Response.status(Response.Status.ACCEPTED).entity(ret).build();
 }
