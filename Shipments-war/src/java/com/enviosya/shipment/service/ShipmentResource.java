@@ -7,13 +7,13 @@ import com.enviosya.shipment.exception.DatoErroneoException;
 import com.enviosya.shipment.exception.EntidadNoExisteException;
 import com.enviosya.shipment.persistence.ShipmentEntity;
 import com.google.gson.Gson;
-import com.google.gson.stream.MalformedJsonException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.MalformedURLException;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -53,29 +53,85 @@ public class ShipmentResource {
     @POST
     @Path("add")
     @Consumes(MediaType.APPLICATION_JSON)
-    public String agregar(String body) {
+    public Response agregar(String body) {
         String r;
-        String respuesta = "Error al agregar un shipment";
+        Gson gson = new Gson();
+        String vacio = "";
+        String error = gson.toJson("Error al agregar un shipment. "
+                + "Verifique los datos ingresados.");
+
         try {
-             Gson gson = new Gson();
+            
             ShipmentEntity u = gson.fromJson(body, ShipmentEntity.class);
-            ShipmentEntity creado = shipmentBean.agregar(u);
-            if (creado != null) {
-                r = shipmentBean.getCadetesCercanos(u.getOrigenLatitud(),
-                                                u.getOrigenLongitud());
-            } else {
+            if (!shipmentBean.existeCliente(String.valueOf(u.getIdClienteOrigen()))) {
+                String sinCli = gson.toJson("Error al agregar un "
+                        + "shipment. Cliente no registrado");
                 return Response
                     .status(Response.Status.ACCEPTED)
-                    .entity(respuesta)
-                    .build().toString();
+                    .entity(sinCli)
+                    .build();
             }
-        } catch (DatoErroneoException | IOException  e) {
-            r = Response
+            if (u.getDestinoLatitud().equalsIgnoreCase(vacio)
+                || u.getDestinoLongitud().equalsIgnoreCase(vacio)
+                || u.getOrigenLatitud().equalsIgnoreCase(vacio)
+                || u.getOrigenLongitud().equalsIgnoreCase(vacio)) {
+                String sinUbic = gson.toJson("Error al agregar un shipment. Verifique "
+                        + "los datos de las ubicaciones.");
+                return Response
                     .status(Response.Status.ACCEPTED)
-                    .entity(respuesta)
-                    .build().toString();
+                    .entity(sinUbic)
+                    .build();
+
+            }
+            if (u.getImagenPaquete().equalsIgnoreCase(vacio)) {
+                String sinImag = gson.toJson("Error al agregar un shipment. Falta el dato "
+                        + "de la imagen");
+                return Response
+                    .status(Response.Status.ACCEPTED)
+                    .entity(sinImag)
+                    .build();
+
+            }
+            ShipmentEntity creado = shipmentBean.agregar(u);
+            r = shipmentBean.getCadetesCercanos(u.getOrigenLatitud(),
+                                                u.getOrigenLongitud());
+            if (r == null) {
+                if (!shipmentBean.eliminar(creado)) {
+                    String re = gson.toJson("No hay cadetes disponibles, "
+                            + "ver log por más detalles. "
+                            + "El envío quedó creado con el id: "
+                            + "" + creado.getId());
+                       return Response
+                        .status(Response.Status.ACCEPTED)
+                        .entity(re)
+                        .build();
+                } else {
+                    String re = gson.toJson("No hay cadetes disponibles, "
+                            + "ver log por más detalles. "
+                            + "El envío no fue generado.");
+                       return Response
+                        .status(Response.Status.ACCEPTED)
+                        .entity(re)
+                        .build();
+
+                }
+            }
+
+        } catch (DatoErroneoException | IOException  e) {
+            return Response
+                    .status(Response.Status.ACCEPTED)
+                    .entity(error)
+                    .build();
+        } catch (Exception ex) {
+             return Response
+                    .status(Response.Status.ACCEPTED)
+                    .entity(error)
+                    .build();
         }
-        return r;
+        return Response
+                    .status(Response.Status.CREATED)
+                    .entity(r)
+                    .build();
     }
 
     @POST
@@ -104,27 +160,44 @@ public class ShipmentResource {
                     contador++;
                 }
             }
+            if (!shipmentBean.isNumeric(datos[0])
+                    || !shipmentBean.isNumeric(datos[1])) {
+                String error = "Error con los datos ingeresados. Deben "
+                        + "ser números enteros.";
+                return Response
+                            .status(Response.Status.ACCEPTED)
+                            .entity(error)
+                            .build();
+            }
             Long id = Long.valueOf(datos[0]);
             Long idCadete = Long.valueOf(datos[1]);
             Gson gson = new Gson();
-            System.out.println("ID CADDETE: " + datos[1]);
+
             ShipmentEntity modificado =
                     shipmentBean.asignarCadete(id, idCadete);
             if (modificado == null) {
-                r = Response
-                        .status(Response.Status.BAD_REQUEST)
-                        .entity("Shipment")
-                        .build();
+                 String error = "Error al asingar el cadete. Verifique "
+                        + "los datos.";
+                return Response
+                            .status(Response.Status.ACCEPTED)
+                            .entity(error)
+                            .build();
             } else {
-                r = Response
+                return Response
                         .status(Response.Status.CREATED)
                         .entity(gson.toJson(modificado))
                         .build();
             }
-            } catch (IOException | NumberFormatException e) {
-                System.out.println(e.getMessage());
+            } catch (IOException
+                    | NumberFormatException
+                    | EntidadNoExisteException e) {
+                String error = "Error al asingar el cadete. Verifique "
+                        + "los datos.";
+                return Response
+                            .status(Response.Status.ACCEPTED)
+                            .entity(error)
+                            .build();
             }
-        return r;
     }
 //Response.status(Response.Status.ACCEPTED).entity(ret).build();
     @POST
@@ -195,8 +268,16 @@ public class ShipmentResource {
         id = id.replace("}", "");
         id = id.replace(",", "");
         id = id.trim();
-        System.out.println("ID " + id);
+
         try {
+            if (!shipmentBean.isNumeric(id)){
+                String error = "Error al confirmar, el dato "
+                        + "ingresado debe ser un valor numérico.";
+                return Response
+                        .status(Response.Status.BAD_REQUEST)
+                        .entity(error)
+                        .build();
+            }
             boolean confirmado =
                     shipmentBean.confirmarRecepcion(Long.valueOf(id));
             System.out.println("CONFIRMADO");

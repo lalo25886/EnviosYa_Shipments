@@ -3,7 +3,6 @@ package com.enviosya.shipment.domain;
 import com.enviosya.shipment.exception.DatoErroneoException;
 import com.enviosya.shipment.exception.EntidadNoExisteException;
 import com.enviosya.shipment.mail.MailBean;
-import com.enviosya.shipment.tool.CalculateCostBean;
 import com.enviosya.shipment.persistence.ShipmentEntity;
 import com.enviosya.shipment.tool.CalculateCostBean;
 import com.google.gson.Gson;
@@ -14,21 +13,17 @@ import com.mashape.unirest.http.exceptions.UnirestException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.sql.SQLDataException;
-import java.sql.SQLException;
-import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.List;
 import java.util.Objects;
+import java.util.logging.Level;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.ejb.EJB;
 import javax.ejb.EJBException;
 import javax.ejb.Stateless;
-import javax.ejb.LocalBean;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.JMSException;
@@ -39,7 +34,7 @@ import javax.jms.Session;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.PersistenceException;
-import javax.xml.crypto.URIReferenceException;
+
 import org.apache.log4j.Logger;
 
 
@@ -77,6 +72,7 @@ public class ShipmentBean {
     public ShipmentEntity agregar(ShipmentEntity unShipmentEntity)
             throws DatoErroneoException {
         try {
+            
             em.persist(unShipmentEntity);
             return unShipmentEntity;
         } catch (EJBException | PersistenceException  e) {
@@ -86,18 +82,18 @@ public class ShipmentBean {
         }
     }
 
-    public ShipmentEntity agregar(String body) throws DatoErroneoException {
-       try {
-            Gson gson = new Gson();
-            ShipmentEntity unEnvio = gson.fromJson(body, ShipmentEntity.class);
-            em.persist(unEnvio);
-            return unEnvio;
-        } catch (EJBException | PersistenceException  e) {
-            log.error("Error en agregrar Shipment Entity: " + e.getMessage());
-            throw new DatoErroneoException("Error al agregar un shipment. "
-                    + "Verifique los datos ingresados.");
-        }
-    }
+//    public ShipmentEntity agregar(String body) throws DatoErroneoException {
+//       try {
+//            Gson gson = new Gson();
+//            ShipmentEntity unEnvio = gson.fromJson(body, ShipmentEntity.class);
+//            em.persist(unEnvio);
+//            return unEnvio;
+//        } catch (EJBException | PersistenceException  e) {
+//            log.error("Error en agregrar Shipment Entity: " + e.getMessage());
+//            throw new DatoErroneoException("Error al agregar un shipment. "
+//                    + "Verifique los datos ingresados.");
+//        }
+//    }
 
     public ShipmentEntity modificar(ShipmentEntity unEnvioEntity)
             throws EntidadNoExisteException {
@@ -137,13 +133,15 @@ public class ShipmentBean {
             Connection connection = connectionFactory.createConnection();
             Session session = connection.createSession()) {
             String dimension = getDimensionesImagen(unEnvio.getImagenPaquete());
-            if (dimension.equalsIgnoreCase("-1")){
+            
+            if (dimension.equalsIgnoreCase("-1")) {
                 throw new Exception("Error al obtener las dimensiones de "
                         + "la imagen");
             } else {
-                double dato1 = 2;
-                double dato2 = 2;
-                double dato3 = 2;
+                String[] datos = dimension.split("*");
+                double dato1 = Double.valueOf(datos[0]);
+                double dato2 = Double.valueOf(datos[1]);
+                double dato3 = Double.valueOf(datos[2]);
 
                 double costo = calculate.calcularCosto(dato1, dato2, dato3);
 
@@ -174,7 +172,8 @@ public class ShipmentBean {
                         + "El costo del envío es: $"
                         + String.valueOf(costo) + ". "
                         + "La dirección de origen es: " + dirOrigen
-                        + " y la dirección de destino es: " + dirDestino + ".");
+                        + " y la dirección de destino "
+                        + "es: " + dirDestino + ".");
                 productorDeMensajeCadete.send(mensaje);
                 String mensajeNuevo = cadeteNotif + " - Nuevo envío - "
                         + "Estimado cadete "
@@ -190,8 +189,6 @@ public class ShipmentBean {
                 mailBean.enviarMail(mensajeNuevo);
                 log.info("Envio realizado:" + unEnvio.toString());
             }
-            
-            
         } catch (JMSException ex) {
             log.error("ERROR: Ha ocurrido un error al enviar "
                     + "un mensaje en la creación de "
@@ -282,10 +279,9 @@ public class ShipmentBean {
             BufferedReader br = new BufferedReader(new InputStreamReader(
                     (conn.getInputStream())));
             String output = "";
-            int contador = 1;
-            while ((output = br.readLine()) != null && contador <= 4) {
+            while ((output = br.readLine()) != null) {
                     r = output + "\n";
-                    contador++;
+
             }
             conn.disconnect();
             return r;
@@ -385,6 +381,7 @@ public class ShipmentBean {
             String length = "";
             String height = "";
             String weight = "";
+            
             if (response.getBody().getObject() != null) {
                 length = response.getBody().getObject()
                         .get("length").toString();
@@ -393,6 +390,7 @@ public class ShipmentBean {
                 weight = response.getBody().getObject()
                         .get("weight").toString();
                 r = length + "*" + height + "*" + weight;
+                Unirest.shutdown();
                 return r;
             }else {
                 return "-1";
@@ -568,7 +566,7 @@ public class ShipmentBean {
             while ((output = br.readLine()) != null) {
                     r += output;
             }
-            System.out.println("DATOS DEL CADETE : " + r);
+
             conn.disconnect();
             return r;
         } catch (MalformedURLException e) {
@@ -611,7 +609,7 @@ public class ShipmentBean {
             while ((output = br.readLine()) != null) {
                     r += output;
             }
-            System.out.println("LISTA DE REVIEW : " + r);
+
             conn.disconnect();
             return r;
         } catch (MalformedURLException e) {
@@ -630,5 +628,52 @@ public class ShipmentBean {
                        + " " + e.getMessage());
          }
     }
+    public boolean existeCliente(String id) throws MalformedURLException, IOException {
+        String link = "http://localhost:8080/Clients-war/"
+                    + "client/isClient/" + id;
+        String error = "-5";
+        String r = "";
+        //String urlClientFrom = "http://localhost:8080/ClientApp-war/Client/" + id + "/findClient";
+        try {
+
+            URL url = new URL(link);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Accept", "application/json");
+
+            if (conn.getResponseCode() != 200) {
+                    throw new RuntimeException("Failed : HTTP error code : "
+                                    + conn.getResponseCode());
+            }
+            BufferedReader br = new BufferedReader(new InputStreamReader(
+                    (conn.getInputStream())));
+            String output = "";
+            while ((output = br.readLine()) != null) {
+                    r = output;
+            }
+            conn.disconnect();
+            if (r.equalsIgnoreCase(error)){
+                return false;
+            }
+            
+        } catch (MalformedURLException ex) {
+            log.error("Error en existeCliente[1]:"
+                       + " " + ex.getMessage());
+               throw new MalformedURLException("Error en la URL: " + link);
+        } catch (IOException ex) {
+           log.error("Error en getCadeteNotificarEntidad[2]:"
+                       + " " + ex.getMessage());
+               throw new IOException("Error en getCadeteNotificarEntidad.");
+        }
+        return true;
+    }
+    public boolean isNumeric(String cadena){
+	try {
+		Integer.parseInt(cadena);
+		return true;
+	} catch (NumberFormatException nfe){
+		return false;
+	}
+}
 //Response.status(Response.Status.ACCEPTED).entity(ret).build();
 }
