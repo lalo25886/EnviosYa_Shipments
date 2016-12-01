@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
+import javax.jms.JMSException;
 import javax.persistence.PersistenceException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -268,17 +269,6 @@ public class ShipmentResource {
                     .build();
         }
     }
-//  @GET
-//  @Path("/envioCliente/{id}")
-//  @Consumes(MediaType.TEXT_HTML)
-//  public String  getClienteEnvios(@PathParam("id") String id) {
-//      String retorno = "";
-//      ClienteEntity cliente = new ClienteEntity();
-//      cliente.setId(Long.parseLong(id));
-//      Gson gson = new Gson();
-//      retorno = gson.toJson(envioBean.listarClienteEnvios(cliente.getId()));
-//      return retorno;
-//  }
 
     @POST
     @Path("confirm")
@@ -324,7 +314,14 @@ public class ShipmentResource {
                         .status(Response.Status.ACCEPTED)
                         .entity(ret)
                         .build();
-            }
+            } catch (JMSException ex) {
+                String ret = "[3] Error al confirmar la recepción del envío. "
+                       + "Excepción: JMSException - " + ex.getMessage();
+                r = Response
+                        .status(Response.Status.ACCEPTED)
+                        .entity(ret)
+                        .build();
+        }
         return r;
     }
 
@@ -332,7 +329,7 @@ public class ShipmentResource {
     @Path("isclient/{id}/{idCliente}")
     @Consumes(MediaType.APPLICATION_JSON)
      public String esCliente(@PathParam("id") String id,
-                             @PathParam("idCliente") String idCliente) {        
+                             @PathParam("idCliente") String idCliente) {    
         boolean retorno = false;
         String linea = "";
         String vacio = "";

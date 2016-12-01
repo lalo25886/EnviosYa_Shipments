@@ -18,7 +18,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 import java.util.Objects;
-import java.util.logging.Level;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.ejb.EJB;
@@ -57,10 +56,10 @@ public class ShipmentBean {
     private ConnectionFactory connectionFactory;
     @Resource(lookup = "jms/QueueCadete")
     private Queue queueCadete;
-//    @Resource(lookup = "jms/QueueEmisor")
-//    private Queue queueEmisor;
-//    @Resource(lookup = "jms/QueueReceptor")
-//    private Queue queueReceptor;
+    @Resource(lookup = "jms/QueueEmisor")
+    private Queue queueEmisor;
+    @Resource(lookup = "jms/QueueReceptor")
+    private Queue queueReceptor;
     @PersistenceContext
     private EntityManager em;
     @PostConstruct
@@ -82,19 +81,6 @@ public class ShipmentBean {
         }
     }
 
-//    public ShipmentEntity agregar(String body) throws DatoErroneoException {
-//       try {
-//            Gson gson = new Gson();
-//            ShipmentEntity unEnvio = gson.fromJson(body, ShipmentEntity.class);
-//            em.persist(unEnvio);
-//            return unEnvio;
-//        } catch (EJBException | PersistenceException  e) {
-//            log.error("Error en agregrar Shipment Entity: " + e.getMessage());
-//            throw new DatoErroneoException("Error al agregar un shipment. "
-//                    + "Verifique los datos ingresados.");
-//        }
-//    }
-
     public ShipmentEntity modificar(ShipmentEntity unEnvioEntity)
             throws EntidadNoExisteException {
         try {
@@ -113,6 +99,7 @@ public class ShipmentBean {
         try {
             ShipmentEntity amodificar = em.find(ShipmentEntity.class, id);
             amodificar.setIdCadete(idCad);
+            System.out.println("ID CADETE :" + amodificar.getIdCadete());
             em.merge(amodificar);
             enviarCreacionEnvio(amodificar);
             return amodificar;
@@ -136,7 +123,6 @@ public class ShipmentBean {
             Connection connection = connectionFactory.createConnection();
             Session session = connection.createSession()) {
             String dimension = getDimensionesImagen(unEnvio.getImagenPaquete());
-
             if (dimension.equalsIgnoreCase("-1")) {
                 throw new Exception("Error al obtener las dimensiones de "
                         + "la imagen");
@@ -145,9 +131,7 @@ public class ShipmentBean {
                 double dato1 = Double.valueOf(datos[0]);
                 double dato2 = Double.valueOf(datos[1]);
                 double dato3 = Double.valueOf(datos[2]);
-
                 double costo = calculate.calcularCosto(dato1, dato2, dato3);
-
                 String dirOrigen =
                         convertirUbicacion(unEnvio.getOrigenLatitud(),
                                            unEnvio.getOrigenLongitud(),
@@ -159,11 +143,7 @@ public class ShipmentBean {
 
                 MessageProducer productorDeMensajeCadete =
                         session.createProducer(queueCadete);
-    //            MessageProducer productorDeMensajeEmisor =
-    //                    session.createProducer(queueEmisor);
 
-    //            MessageProducer productorDeMensajeReceptor =
-    //                    session.createProducer(queueReceptor);
                 String cadeteNotif = getCadeteNotificar(unEnvio.getIdCadete());
                 Message mensaje =
                 session.createTextMessage(cadeteNotif + " - Nuevo envío - "
@@ -178,18 +158,6 @@ public class ShipmentBean {
                         + " y la dirección de destino "
                         + "es: " + dirDestino + ".");
                 productorDeMensajeCadete.send(mensaje);
-                String mensajeNuevo = cadeteNotif + " - Nuevo envío - "
-                        + "Estimado cadete "
-                        + unEnvio.getIdCadete().toString()
-                        + ", usted tiene el "
-                        + "envio número : "
-                        + unEnvio.getId() + " pendiente. "
-                        + "El costo del envío es: $"
-                        + String.valueOf(costo) + ". "
-                        + "La dirección de origen es: " + dirOrigen
-                        + " y la dirección de destino es: " + dirDestino + "."
-                        + "";
-                mailBean.enviarMail(mensajeNuevo);
                 log.info("Envio realizado:" + unEnvio.toString());
             }
             session.close();
@@ -393,10 +361,7 @@ public class ShipmentBean {
                         .get("height").toString();
                 weight = response.getBody().getObject()
                         .get("weight").toString();
-                
                 r = length + "-" + height + "-" + weight;
-                System.out.println("VALORES: " + r );
-                //Unirest.shutdown();
                 return r;
             } else {
                 return "-1";
@@ -423,10 +388,12 @@ public class ShipmentBean {
     }
 
     public boolean confirmarRecepcion(Long id)
-            throws DatoErroneoException {
+            throws DatoErroneoException, JMSException {
         int valor = 1;
         boolean  retorno = false;
-        try {
+        try (
+            Connection connection = connectionFactory.createConnection();
+            Session session = connection.createSession()) {
             ShipmentEntity amodificar =
                     em.find(ShipmentEntity.class, id);
             amodificar.setConfirmado(valor);
@@ -440,7 +407,7 @@ public class ShipmentBean {
                         getClienteNotificar(amodificar.getIdClienteOrigen());
                 String destinatarioNotif =
                         getClienteNotificar(amodificar.getIdClienteDestino());
-                if ( remitenteNotif.equalsIgnoreCase("")
+                if (remitenteNotif.equalsIgnoreCase("")
                     || destinatarioNotif.equalsIgnoreCase("")
                     || remitenteNotif.equalsIgnoreCase("-5")
                     || destinatarioNotif.equalsIgnoreCase("-5")) {
@@ -449,7 +416,13 @@ public class ShipmentBean {
                     em.flush();
                     return false;
                 } else {
-                    String mensajeEmisor = remitenteNotif
+                        MessageProducer productorDeMensajeEmisor =
+                        session.createProducer(queueEmisor);
+
+                        MessageProducer productorDeMensajeReceptor =
+                        session.createProducer(queueReceptor);
+                        Message mensaje =
+                        session.createTextMessage(remitenteNotif
                         + " - Confirmación de envío - "
                         + "Estimado cliente "
                         + amodificar.getIdClienteOrigen().toString()
@@ -464,30 +437,34 @@ public class ShipmentBean {
                         + "Acceder al link para calificar el "
                         + "servicio y al cadete "
                         + "http://localhost:8080/Reviews-war/review/add "
-                        + "EnviosYa! le agradece por su preferencia.";
-                        mailBean.enviarMail(mensajeEmisor);
-                        log.info("Confirmación de envío (origen)"
-                        + ":" + remitenteNotif);
+                        + "EnviosYa! le agradece por su preferencia.");
+                        productorDeMensajeEmisor.send(mensaje);
 
-                    String mensajeDestinatario = destinatarioNotif
+                        Message mensaje2 =
+                        session.createTextMessage(destinatarioNotif
                         + " - Confirmación de envío - "
                         + "Estimado cliente "
                         + amodificar.getIdClienteDestino().toString()
-                        + ", tenemos el agrado de informarle que el envío número "
+                        + ", tenemos el agrado de informarle "
+                        + "que el envío número "
                         + amodificar.getId().toString()
                         + " fue recepcionado exitosamente. "
                         + "El cadete que realizó el envío es el número "
-                        + amodificar.getIdCadete() + " y su correo electrónico es "
+                        + amodificar.getIdCadete() + " y su correo "
+                        + "electrónico es "
                         + cadeteNotif + ". "
-                        + "Acceder al link para calificar el servicio y al cadete "
+                        + "Acceder al link para calificar el "
+                        + "servicio y al cadete "
                         + "http://localhost:8080/Reviews-war/review/add2 "
-                        + "EnviosYa! le agradece por su preferencia.";
+                        + "EnviosYa! le agradece por su preferencia.");
+                        productorDeMensajeReceptor.send(mensaje2);
 
-                    mailBean.enviarMail(mensajeDestinatario);
-                    log.info("Confirmación de envío (destino):" + remitenteNotif);
+                    log.info("Confirmación de envío "
+                            + "(destino):" + remitenteNotif);
                 }
             }
-        } catch (PersistenceException | IOException | DatoErroneoException e) {
+        } catch (PersistenceException | IOException | DatoErroneoException
+                | JMSException e) {
              log.error("Error en confirmarRecepcion: " + e.getMessage());
             throw new DatoErroneoException("Error en confirmarRecepcion."
                     + "" + e.getMessage());
@@ -550,12 +527,12 @@ public class ShipmentBean {
         return retorno;
     }
 
-    public ShipmentEntity obtenerShipment(Long id) throws EntidadNoExisteException {
+    public ShipmentEntity obtenerShipment(Long id)
+            throws EntidadNoExisteException {
         ShipmentEntity unS = null;
         try {
             unS = em.find(ShipmentEntity.class, id);
             String cadete = getCadeteNotificarEntidad(unS.getIdCadete());
-            
         } catch (Exception e) {
             log.error("Error al obtenerShipment: " + e.getMessage());
             throw new EntidadNoExisteException("Error en obtenerShipment. "
@@ -649,7 +626,8 @@ public class ShipmentBean {
                        + " " + e.getMessage());
          }
     }
-    public boolean existeCliente(String id) throws MalformedURLException, IOException {
+    public boolean existeCliente(String id)
+            throws MalformedURLException, IOException {
         String link = "http://localhost:8080/Clients-war/"
                     + "client/isClient/" + id;
         String error = "-5";
@@ -691,9 +669,8 @@ public class ShipmentBean {
 	try {
 		Integer.parseInt(cadena);
 		return true;
-	} catch (NumberFormatException nfe){
+	} catch (NumberFormatException nfe) {
 		return false;
 	}
-}
-//Response.status(Response.Status.ACCEPTED).entity(ret).build();
+    }
 }
