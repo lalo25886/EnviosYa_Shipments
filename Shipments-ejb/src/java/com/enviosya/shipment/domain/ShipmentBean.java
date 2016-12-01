@@ -463,7 +463,7 @@ public class ShipmentBean {
                         + cadeteNotif + ". "
                         + "Acceder al link para calificar el "
                         + "servicio y al cadete "
-                        + "https://www.google.com.uy "
+                        + "http://localhost:8080/Reviews-war/review/add "
                         + "EnviosYa! le agradece por su preferencia.";
                         mailBean.enviarMail(mensajeEmisor);
                         log.info("Confirmación de envío (origen)"
@@ -480,7 +480,7 @@ public class ShipmentBean {
                         + amodificar.getIdCadete() + " y su correo electrónico es "
                         + cadeteNotif + ". "
                         + "Acceder al link para calificar el servicio y al cadete "
-                        + "https://www.google.com.uy "
+                        + "http://localhost:8080/Reviews-war/review/add2 "
                         + "EnviosYa! le agradece por su preferencia.";
 
                     mailBean.enviarMail(mensajeDestinatario);
@@ -654,7 +654,6 @@ public class ShipmentBean {
                     + "client/isClient/" + id;
         String error = "-5";
         String r = "";
-        //String urlClientFrom = "http://localhost:8080/ClientApp-war/Client/" + id + "/findClient";
         try {
 
             URL url = new URL(link);
@@ -673,10 +672,10 @@ public class ShipmentBean {
                     r = output;
             }
             conn.disconnect();
-            if (r.equalsIgnoreCase(error)){
+            if (r.equalsIgnoreCase(error)) {
                 return false;
             }
-            
+
         } catch (MalformedURLException ex) {
             log.error("Error en existeCliente[1]:"
                        + " " + ex.getMessage());
