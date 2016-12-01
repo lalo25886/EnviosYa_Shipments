@@ -304,20 +304,22 @@ public class ShipmentResource {
             }
             boolean confirmado =
                     shipmentBean.confirmarRecepcion(Long.valueOf(id));
-            if (!confirmado) {
-                String ret = "[1] Error al confirmar la recepción del envío.";
+            r = Response
+                        .status(Response.Status.CREATED)
+                        .entity("Se ha confirmado exitosamente el envío.")
+                        .build();
+
+            } catch (PersistenceException e) {
+                String ret = "[1] Error al confirmar la recepción del envío. "
+                        + "Excepción: PersistenceException - "
+                        + e.getMessage();
                 r = Response
                         .status(Response.Status.ACCEPTED)
                         .entity(ret)
                         .build();
-            } else {
-                r = Response
-                        .status(Response.Status.CREATED)
-                        .entity("Se ha confirmado exitosamente el envío.")
-                        .build();
-            }
             } catch (DatoErroneoException e) {
-                String ret = "[2] Error al confirmar la recepción del envío.";
+                String ret = "[2] Error al confirmar la recepción del envío. "
+                       + "Excepción: DatoErroneoException - " + e.getMessage();
                 r = Response
                         .status(Response.Status.ACCEPTED)
                         .entity(ret)
@@ -327,39 +329,23 @@ public class ShipmentResource {
     }
 
     @POST
-    @Path("isclient")
+    @Path("isclient/{id}/{idCliente}")
     @Consumes(MediaType.APPLICATION_JSON)
-    public String esCliente(InputStream input) {
+     public String esCliente(@PathParam("id") String id,
+                             @PathParam("idCliente") String idCliente) {        
         boolean retorno = false;
         String linea = "";
         String vacio = "";
         int contador = 0;
         String[] datos = new String[2];
         try {
-            BufferedReader in =
-                    new BufferedReader(new InputStreamReader(input));
-            while ((linea = in.readLine()) != null) {
-                linea = linea.replace("\"id\": \"", "");
-                linea = linea.replace("\"idCliente\": \"", "");
-                linea = linea.replace("\"", "");
-                linea = linea.replace("	", "");
-                linea = linea.replace("{", "");
-                linea = linea.replace("}", "");
-                linea = linea.replace("\\n", "");
-                linea = linea.replace(",", "");
-                linea = linea.trim();
-                if (!linea.equalsIgnoreCase(vacio)) {
-                    datos[contador] = linea;
-                    contador++;
-                }
-            }
-            if (!shipmentBean.isNumeric(datos[0])
-                    || !shipmentBean.isNumeric(datos[1])) {
+            if (!shipmentBean.isNumeric(id)
+                    || !shipmentBean.isNumeric(idCliente)) {
                 return "0";
             }
-            Long id = Long.valueOf(datos[0]);
-            Long idCliente = Long.valueOf(datos[1]);
-            retorno = shipmentBean.esCliente(id, idCliente);
+            Long idN = Long.valueOf(id);
+            Long idClienteN = Long.valueOf(idCliente);
+            retorno = shipmentBean.esCliente(idN, idClienteN);
 
             } catch (PersistenceException e) {
                 System.out.println("[1] ERROR en esCliente "
@@ -369,12 +355,12 @@ public class ShipmentResource {
                 System.out.println("[2] ERROR en esCliente "
                         + "(Resource) :" + ex.getMessage());
                 return "0";
-            } catch (IOException ex) {
-                System.out.println("[3] ERROR en esCliente "
-                        + "(Resource) :" + ex.getMessage());
-                return "0";
+//            } catch (IOException ex) {
+//                System.out.println("[3] ERROR en esCliente "
+//                        + "(Resource) :" + ex.getMessage());
+//                return "0";
         }
-        if(retorno) { return "1";} else { return "0";}
+        if (retorno) { return "1";} else { return "0";}
     }
 
     @GET

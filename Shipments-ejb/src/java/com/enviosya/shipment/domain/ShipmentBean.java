@@ -141,7 +141,7 @@ public class ShipmentBean {
                 throw new Exception("Error al obtener las dimensiones de "
                         + "la imagen");
             } else {
-                String[] datos = dimension.split("*");
+                String[] datos = dimension.split("-");
                 double dato1 = Double.valueOf(datos[0]);
                 double dato2 = Double.valueOf(datos[1]);
                 double dato3 = Double.valueOf(datos[2]);
@@ -393,8 +393,10 @@ public class ShipmentBean {
                         .get("height").toString();
                 weight = response.getBody().getObject()
                         .get("weight").toString();
-                r = length + "*" + height + "*" + weight;
-                Unirest.shutdown();
+                
+                r = length + "-" + height + "-" + weight;
+                System.out.println("VALORES: " + r );
+                //Unirest.shutdown();
                 return r;
             } else {
                 return "-1";
@@ -451,17 +453,21 @@ public class ShipmentBean {
                         + " - Confirmación de envío - "
                         + "Estimado cliente "
                         + amodificar.getIdClienteOrigen().toString()
-                        + ", tenemos el agrado de informarle que el envío número "
+                        + ", tenemos el agrado de informarle "
+                        + "que el envío número "
                         + amodificar.getId().toString()
                         + " fue recepcionado exitosamente. "
                         + "El cadete que realizó el envío es el número "
-                        + amodificar.getIdCadete() + " y su correo electrónico es "
+                        + amodificar.getIdCadete() + " y su correo "
+                        + "electrónico es "
                         + cadeteNotif + ". "
-                        + "Acceder al link para calificar el servicio y al cadete "
+                        + "Acceder al link para calificar el "
+                        + "servicio y al cadete "
                         + "https://www.google.com.uy "
                         + "EnviosYa! le agradece por su preferencia.";
-                    mailBean.enviarMail(mensajeEmisor);
-                    log.info("Confirmación de envío (origen):" + remitenteNotif);
+                        mailBean.enviarMail(mensajeEmisor);
+                        log.info("Confirmación de envío (origen)"
+                        + ":" + remitenteNotif);
 
                     String mensajeDestinatario = destinatarioNotif
                         + " - Confirmación de envío - "
