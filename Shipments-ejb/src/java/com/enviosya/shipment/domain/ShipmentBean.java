@@ -2,7 +2,6 @@ package com.enviosya.shipment.domain;
 
 import com.enviosya.shipment.exception.DatoErroneoException;
 import com.enviosya.shipment.exception.EntidadNoExisteException;
-import com.enviosya.shipment.mail.MailBean;
 import com.enviosya.shipment.persistence.ShipmentEntity;
 import com.enviosya.shipment.tool.CalculateCostBean;
 import com.google.gson.Gson;
@@ -46,8 +45,7 @@ import org.apache.log4j.Logger;
 public class ShipmentBean {
 
 
-    @EJB
-    MailBean mailBean;
+
     @EJB
     CalculateCostBean calculate;
 
